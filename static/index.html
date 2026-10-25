@@ -1,0 +1,2106 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HelpDesk Enterprise</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23facc15' stroke-width='1.5'%3E%3Crect x='2' y='2' width='20' height='5' rx='1'%3E%3C/rect%3E%3Cline x1='6' y1='4.5' x2='6.01' y2='4.5' stroke-width='2'%3E%3C/line%3E%3Cline x1='10' y1='4.5' x2='18' y2='4.5'%3E%3C/line%3E%3Crect x='2' y='9.5' width='20' height='5' rx='1'%3E%3C/rect%3E%3Cline x1='6' y1='12' x2='6.01' y2='12' stroke-width='2'%3E%3C/line%3E%3Cline x1='10' y1='12' x2='18' y2='12'%3E%3C/line%3E%3Crect x='2' y='17' width='20' height='5' rx='1'%3E%3C/rect%3E%3Cline x1='6' y1='19.5' x2='6.01' y2='19.5' stroke-width='2'%3E%3C/line%3E%3Cline x1='10' y1='19.5' x2='18' y2='19.5'%3E%3C/line%3E%3C/svg%3E">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        const originalFetch = window.fetch;
+        window.fetch = async function() {
+            let [resource, config] = arguments;
+            if (!config) config = {};
+            if (!config.headers) config.headers = {};
+            const token = localStorage.getItem('access_token');
+            const url = typeof resource === 'string' ? resource : resource.url;
+            if (token && url && !url.includes('/api/login')) {
+                config.headers['Authorization'] = `Bearer ${token}`;
+            }
+            return originalFetch(resource, config);
+        };
+        tailwind.config = { darkMode: 'class' }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/morphdom@2.7.0/dist/morphdom-umd.min.js"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #64748b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes popStar { 0% { transform: scale(1); } 50% { transform: scale(1.35); } 100% { transform: scale(1); } }
+        
+        .fade-in { animation: fadeIn 0.15s ease-out forwards; }
+        .toast-slide { animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .pop-star { animation: popStar 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        .vis-network { outline: none; }
+        .vis-manipulation { border-radius: 8px; background: rgba(36,47,61,0.9) !important; color: #e4ebf5; border: 1px solid #2b3643; }
+    </style>
+</head>
+<body id="pageBody" class="bg-slate-100 dark:bg-[#0e1621] text-slate-800 dark:text-[#e4ebf5] min-h-screen flex flex-col selection:bg-blue-600 selection:text-white transition-colors duration-200 relative pb-16 lg:pb-0">
+    
+    <div id="toastContainer" class="fixed bottom-20 lg:bottom-5 right-5 z-[9999] flex flex-col gap-2"></div>
+
+    <!-- АВТОРИЗАЦИЯ -->
+    <div id="authOverlay" class="fixed inset-0 bg-slate-900 dark:bg-[#0e1621] z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-[#17212b] rounded-lg shadow-2xl p-8 w-full max-w-md border border-slate-200 dark:border-[#2b3643] transition-colors">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-md bg-[#17212b] border border-[#2b3643] mb-4 shadow-sm text-[#facc15]">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-10 h-10"><rect x="2" y="2" width="20" height="5" rx="1"></rect><line x1="6" y1="4.5" x2="6.01" y2="4.5" stroke-width="2"></line><line x1="10" y1="4.5" x2="18" y2="4.5"></line><rect x="2" y="9.5" width="20" height="5" rx="1"></rect><line x1="6" y1="12" x2="6.01" y2="12" stroke-width="2"></line><line x1="10" y1="12" x2="18" y2="12"></line><rect x="2" y="17" width="20" height="5" rx="1"></rect><line x1="6" y1="19.5" x2="6.01" y2="19.5" stroke-width="2"></line><line x1="10" y1="19.5" x2="18" y2="19.5"></line></svg>
+                </div>
+                <h1 class="text-2xl font-bold dark:text-[#facc15] tracking-tight uppercase">HELPDESK ENTERPRISE</h1>
+                <p class="text-[11px] text-slate-500 dark:text-[#e4ebf5] mt-1.5 uppercase tracking-widest">Решаем задачи быстро</p>
+            </div>
+            <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Учетная запись</label>
+                    <input type="text" id="loginInput" required class="w-full px-3.5 py-2.5 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-slate-800 dark:text-[#e4ebf5] focus:outline-none focus:ring-1 focus:ring-blue-600 text-sm transition" placeholder="admin, engineer, user">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Пароль</label>
+                    <input type="password" id="passInput" class="w-full px-3.5 py-2.5 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-slate-800 dark:text-[#e4ebf5] focus:outline-none focus:ring-1 focus:ring-blue-600 text-sm transition" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full py-2.5 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition shadow-sm text-sm active:scale-[0.99] cursor-pointer">
+                    Войти в систему
+                </button>
+            </form>
+            <div class="mt-6 pt-6 border-t border-slate-200 dark:border-[#2b3643] text-center">
+                <p class="text-xs text-slate-400 dark:text-[#7f91a4] mb-3">Демо-доступ:</p>
+                <div class="flex justify-center gap-2">
+                    <button type="button" onclick="quickLogin('admin')" class="px-3 py-1.5 bg-slate-100 dark:bg-[#242f3d] text-slate-700 dark:text-[#e4ebf5] text-xs rounded font-medium border border-slate-200 dark:border-[#2b3643] transition cursor-pointer">Админ</button>
+                    <button type="button" onclick="quickLogin('engineer')" class="px-3 py-1.5 bg-slate-100 dark:bg-[#242f3d] text-slate-700 dark:text-[#e4ebf5] text-xs rounded font-medium border border-slate-200 dark:border-[#2b3643] transition cursor-pointer">Инженер</button>
+                    <button type="button" onclick="quickLogin('user')" class="px-3 py-1.5 bg-slate-100 dark:bg-[#242f3d] text-slate-700 dark:text-[#e4ebf5] text-xs rounded font-medium border border-slate-200 dark:border-[#2b3643] transition cursor-pointer">Пользователь</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОБИЛЬНОЕ МЕНЮ НАВИГАЦИИ (BOTTOM BAR) -->
+    <div id="mobileBottomNav" class="lg:hidden hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#17212b] border-t border-slate-200 dark:border-[#2b3643] justify-around items-center py-2 px-1 z-[60] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]">
+        <button onclick="switchMobileTab('catalog')" id="mobNavCat" class="flex flex-col items-center justify-center w-full text-blue-600 dark:text-blue-400 py-1 transition cursor-pointer">
+            <i class="fa-solid fa-plus-square text-xl mb-1"></i>
+            <span class="text-[9px] font-bold uppercase tracking-wider">Создать</span>
+        </button>
+        <button onclick="switchMobileTab('registry')" id="mobNavReg" class="flex flex-col items-center justify-center w-full text-slate-400 dark:text-[#7f91a4] py-1 transition cursor-pointer">
+            <i class="fa-solid fa-list text-xl mb-1"></i>
+            <span class="text-[9px] font-bold uppercase tracking-wider">Задачи</span>
+        </button>
+        <button onclick="openProfileModal()" class="flex flex-col items-center justify-center w-full text-slate-400 dark:text-[#7f91a4] py-1 transition cursor-pointer">
+            <i class="fa-solid fa-user text-xl mb-1"></i>
+            <span class="text-[9px] font-bold uppercase tracking-wider">Профиль</span>
+        </button>
+    </div>
+
+    <!-- ОСНОВНОЙ ИНТЕРФЕЙС -->
+    <div id="appInterface" class="hidden flex-1 flex flex-col">
+        <header id="mainHeader" class="bg-white dark:bg-[#17212b] shadow-sm px-4 lg:px-6 py-3 flex justify-between items-center border-b border-slate-200 dark:border-[#2b3643] transition-colors duration-200 relative z-40">
+            <div class="flex items-center space-x-3.5">
+                <div class="w-9 h-9 rounded-md bg-[#17212b] border border-[#2b3643] flex items-center justify-center shadow-sm shrink-0 text-[#facc15]">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-5 h-5"><rect x="2" y="2" width="20" height="5" rx="1"></rect><line x1="6" y1="4.5" x2="6.01" y2="4.5" stroke-width="2"></line><line x1="10" y1="4.5" x2="18" y2="4.5"></line><rect x="2" y="9.5" width="20" height="5" rx="1"></rect><line x1="6" y1="12" x2="6.01" y2="12" stroke-width="2"></line><line x1="10" y1="12" x2="18" y2="12"></line><rect x="2" y="17" width="20" height="5" rx="1"></rect><line x1="6" y1="19.5" x2="6.01" y2="19.5" stroke-width="2"></line><line x1="10" y1="19.5" x2="18" y2="19.5"></line></svg>
+                </div>
+                <div>
+                    <h2 class="font-bold text-sm tracking-tight text-slate-900 dark:text-[#f5f5f5] leading-none mb-1 hidden sm:block">HelpDesk Enterprise</h2>
+                    <h2 class="font-bold text-sm tracking-tight text-slate-900 dark:text-[#f5f5f5] leading-none mb-1 sm:hidden">HD Enterprise</h2>
+                    <span id="userRoleBadge" class="text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider bg-slate-100 dark:bg-[#242f3d] text-slate-500 dark:text-[#7f91a4] border border-slate-200 dark:border-[#2b3643]">Пользователь</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleTheme()" id="themeToggleBtn" class="w-8 h-8 rounded-md bg-slate-100 dark:bg-[#242f3d] hover:bg-slate-200 dark:hover:bg-[#2b3643] text-slate-600 dark:text-[#7f91a4] flex items-center justify-center transition border border-slate-200 dark:border-[#2b3643] shadow-sm cursor-pointer" title="Сменить тему">
+                    <i class="fa-solid fa-sun text-xs text-amber-400"></i>
+                </button>
+                
+                <div id="onSiteCounter" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider shadow-sm" title="Инженеров онлайн готовых к работе">
+                    <i class="fa-solid fa-user-check"></i> <span class="hidden sm:inline">Свободно:</span> <span id="onSiteCountText">0</span>
+                </div>
+                
+                <button id="engineerOnSiteBtn" onclick="toggleMyOnSiteStatus(event)" type="button" class="hidden px-3 py-1.5 bg-slate-100 dark:bg-[#242f3d] text-slate-500 dark:text-[#7f91a4] hover:bg-slate-200 dark:hover:bg-[#2b3643] rounded-md text-xs font-semibold border border-slate-200 dark:border-[#2b3643] transition shadow-sm items-center gap-1.5 cursor-pointer" title="Нажмите, чтобы заступить на смену">
+                    <i class="fa-solid fa-toggle-off"></i> <span class="hidden sm:inline">Вне смены</span>
+                </button>
+
+                <div class="relative hidden lg:block">
+                    <button onclick="toggleDropdown()" id="dropdownBtn" class="flex items-center gap-2 bg-slate-100 dark:bg-[#242f3d] hover:bg-slate-200 dark:hover:bg-[#2b3643] px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-[#2b3643] transition cursor-pointer shadow-sm">
+                        <div id="headerAvatar"></div>
+                        <span id="userNameDisplay" class="text-xs font-semibold text-slate-700 dark:text-[#e4ebf5]"></span>
+                        <i class="fa-solid fa-chevron-down text-[10px] text-slate-400 dark:text-[#7f91a4] ml-1"></i>
+                    </button>
+                    
+                    <div id="profileDropdown" class="hidden absolute right-0 mt-2 w-52 bg-white dark:bg-[#17212b] rounded-md shadow-lg border border-slate-200 dark:border-[#2b3643] z-50 overflow-hidden fade-in">
+                        <div class="py-1">
+                            <button onclick="openProfileModal(); toggleDropdown()" class="w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-[#e4ebf5] hover:bg-slate-50 dark:hover:bg-[#242f3d] flex items-center gap-3 transition cursor-pointer"><i class="fa-solid fa-user-cog text-blue-500 w-4 text-center"></i> Профиль</button>
+                            <button id="adminCmdbBtn" onclick="openCmdbModal(); toggleDropdown()" class="hidden w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-[#e4ebf5] hover:bg-slate-50 dark:hover:bg-[#242f3d] flex items-center gap-3 transition cursor-pointer"><i class="fa-solid fa-server text-indigo-500 w-4 text-center"></i> Реестр (CMDB)</button>
+                            <button id="adminTopoBtn" onclick="openTopologyModal(); toggleDropdown()" class="hidden w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-[#e4ebf5] hover:bg-slate-50 dark:hover:bg-[#242f3d] flex items-center gap-3 transition cursor-pointer"><i class="fa-solid fa-network-wired text-cyan-500 w-4 text-center"></i> Карта сети</button>
+                            <button id="adminFaqBtn" onclick="openFaqModal(); toggleDropdown()" class="hidden w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-[#e4ebf5] hover:bg-slate-50 dark:hover:bg-[#242f3d] flex items-center gap-3 transition cursor-pointer"><i class="fa-solid fa-book text-blue-500 w-4 text-center"></i> База знаний</button>
+                            <button id="adminTasksBtn" onclick="openTasksModal(); toggleDropdown()" class="hidden w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-[#e4ebf5] hover:bg-slate-50 dark:hover:bg-[#242f3d] flex items-center gap-3 transition cursor-pointer"><i class="fa-solid fa-clock rotate-180 text-amber-500 w-4 text-center"></i> Авто-задачи</button>
+                            <button id="adminStatsBtn" onclick="openStatsModal(); toggleDropdown()" class="hidden w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-[#e4ebf5] hover:bg-slate-50 dark:hover:bg-[#242f3d] flex items-center gap-3 transition cursor-pointer"><i class="fa-solid fa-chart-pie text-indigo-500 w-4 text-center"></i> Дашборд</button>
+                            <a href="/api/export/excel" target="_blank" id="adminReportBtn" onclick="toggleDropdown()" class="hidden w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-[#e4ebf5] hover:bg-slate-50 dark:hover:bg-[#242f3d] flex items-center gap-3 transition cursor-pointer"><i class="fa-solid fa-file-excel text-emerald-500 w-4 text-center"></i> Отчет (Excel)</a>
+                            <button id="adminRbacBtn" onclick="openRbacModal(); toggleDropdown()" class="hidden w-full text-left px-4 py-2.5 text-xs text-slate-700 dark:text-[#e4ebf5] hover:bg-slate-50 dark:hover:bg-[#242f3d] flex items-center gap-3 transition cursor-pointer"><i class="fa-solid fa-users-gear text-blue-500 w-4 text-center"></i> Пользователи</button>
+                            <div class="border-t border-slate-100 dark:border-[#2b3643] my-1"></div>
+                            <button onclick="logout()" class="w-full text-left px-4 py-2.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 transition cursor-pointer"><i class="fa-solid fa-power-off w-4 text-center"></i> Выход</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-[1500px] w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <!-- ЛЕВАЯ ПАНЕЛЬ: Создание заявки + FAQ -->
+            <div id="leftPanel" class="lg:col-span-1 flex flex-col gap-6 w-full fade-in">
+                <!-- ВИЗУАЛЬНЫЙ КАТАЛОГ УСЛУГ -->
+                <div id="serviceCatalogView" class="bg-white dark:bg-[#17212b] rounded-lg p-5 shadow-sm border border-slate-200 dark:border-[#2b3643] transition-colors">
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-[#f5f5f5] mb-4 flex items-center uppercase tracking-wide">
+                        <i class="fa-solid fa-layer-group text-blue-600 dark:text-blue-400 mr-2 text-lg"></i> Каталог услуг
+                    </h3>
+                    <div class="grid grid-cols-2 gap-3" id="catalogGridContainer"></div>
+                </div>
+
+                <div id="ticketFormContainer" class="hidden bg-white dark:bg-[#17212b] rounded-lg p-5 shadow-sm border border-slate-200 dark:border-[#2b3643] transition-colors relative">
+                    <button type="button" onclick="closeCatalogForm()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-[#f5f5f5] text-sm transition cursor-pointer"><i class="fa-solid fa-arrow-left"></i> Назад</button>
+                    <h3 id="formTitleText" class="text-sm font-bold text-slate-900 dark:text-[#f5f5f5] mb-4 flex items-center transition-colors uppercase tracking-wide">
+                        <i class="fa-solid fa-pen-to-square text-blue-600 dark:text-blue-400 mr-2 text-lg"></i> Создание
+                    </h3>
+                    <form onsubmit="createTicket(event)" class="space-y-3.5">
+                        <input type="hidden" id="ticketCategory">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Устройство (Необязательно)</label>
+                            <select id="ticketEquipment" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm text-slate-800 dark:text-[#e4ebf5] focus:ring-1 focus:ring-blue-600 focus:outline-none transition cursor-pointer">
+                                <option value="">Связать с моим устройством...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Тема заявки</label>
+                            <input type="text" id="ticketTitle" required class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm text-slate-800 dark:text-[#e4ebf5] focus:ring-1 focus:ring-blue-600 focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Описание</label>
+                            <textarea id="ticketDesc" rows="4" required class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm text-slate-800 dark:text-[#e4ebf5] focus:ring-1 focus:ring-blue-600 focus:outline-none transition"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Приоритет</label>
+                            <select id="ticketPriority" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm text-slate-800 dark:text-[#e4ebf5] focus:ring-1 focus:ring-blue-600 focus:outline-none transition cursor-pointer">
+                                <option value="Низкий">Низкий (SLA: 24ч)</option>
+                                <option value="Средний" selected>Средний (SLA: 8ч)</option>
+                                <option value="Высокий">Высокий (SLA: 2ч)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Вложение</label>
+                            <div id="pasteZone" class="border border-dashed border-slate-300 dark:border-[#2b3643] rounded-md p-3 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition bg-slate-50 dark:bg-[#0e1621] relative group">
+                                <p id="pasteHint" class="text-xs font-medium text-slate-500 dark:text-[#7f91a4]"><i class="fa-solid fa-paperclip mr-1"></i> Выбрать файл / Ctrl+V</p>
+                                <input type="file" id="ticketFileInput" class="hidden" onchange="handleFileSelect(event)">
+                                <div id="filePreviewContainer" class="hidden mt-2 flex items-center justify-center gap-2 text-xs font-bold text-slate-700 dark:text-[#e4ebf5]"><span id="fileNameLabel"></span></div>
+                                <img id="previewImg" class="hidden max-h-24 mx-auto rounded-md shadow-sm mt-2">
+                                <button type="button" id="clearImgBtn" onclick="clearImage(event)" class="hidden absolute top-1.5 right-1.5 bg-red-500 text-white rounded w-5 h-5 text-[10px] flex items-center justify-center transition cursor-pointer">×</button>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full py-2.5 mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition shadow-sm text-sm active:scale-[0.99] cursor-pointer">Отправить заявку</button>
+                    </form>
+                </div>
+
+                <div class="bg-white dark:bg-[#17212b] rounded-lg p-5 shadow-sm border border-slate-200 dark:border-[#2b3643] transition-colors relative hidden lg:block">
+                    <h4 class="text-xs font-bold text-slate-500 dark:text-[#7f91a4] uppercase tracking-wider mb-4"><i class="fa-solid fa-book-open mr-1"></i> База знаний</h4>
+                    <div id="faqContainer" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- ПРАВАЯ ПАНЕЛЬ: Реестр -->
+            <div id="rightPanel" class="lg:col-span-3 flex-col gap-6 relative w-full hidden lg:flex fade-in">
+                <div id="kpiDashboard" class="hidden grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white dark:bg-[#17212b] rounded-lg p-4 shadow-sm border border-slate-200 dark:border-[#2b3643] flex items-center gap-4 transition-colors"><div class="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-lg"><i class="fa-solid fa-inbox"></i></div><div><p class="text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase tracking-wider">Новые</p><p id="kpi-new" class="text-xl font-bold text-slate-800 dark:text-[#f5f5f5]">0</p></div></div>
+                    <div class="bg-white dark:bg-[#17212b] rounded-lg p-4 shadow-sm border border-slate-200 dark:border-[#2b3643] flex items-center gap-4 transition-colors"><div class="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 text-lg"><i class="fa-solid fa-spinner fa-spin-pulse"></i></div><div><p class="text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase tracking-wider">В работе</p><p id="kpi-work" class="text-xl font-bold text-slate-800 dark:text-[#f5f5f5]">0</p></div></div>
+                    <div class="bg-white dark:bg-[#17212b] rounded-lg p-4 shadow-sm border border-slate-200 dark:border-[#2b3643] flex items-center gap-4 transition-colors"><div class="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-lg"><i class="fa-solid fa-check-double"></i></div><div><p class="text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase tracking-wider">Решено</p><p id="kpi-resolved" class="text-xl font-bold text-slate-800 dark:text-[#f5f5f5]">0</p></div></div>
+                    <div class="bg-white dark:bg-[#17212b] rounded-lg p-4 shadow-sm border border-slate-200 dark:border-[#2b3643] flex items-center gap-4 transition-colors"><div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-[#242f3d] flex items-center justify-center text-slate-500 dark:text-[#7f91a4] text-lg"><i class="fa-solid fa-lock"></i></div><div><p class="text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase tracking-wider">Закрыто</p><p id="kpi-closed" class="text-xl font-bold text-slate-800 dark:text-[#f5f5f5]">0</p></div></div>
+                </div>
+
+                <div id="registryHeaderBox" class="bg-white dark:bg-[#17212b] rounded-lg p-5 shadow-sm border border-slate-200 dark:border-[#2b3643] flex flex-col gap-4 transition-colors duration-200">
+                    <div class="flex justify-between items-center flex-wrap gap-4">
+                        <div>
+                            <h3 id="registryTitle" class="text-lg font-bold text-slate-900 dark:text-[#f5f5f5] tracking-tight transition-colors">Реестр обращений</h3>
+                            <p id="registrySubtitle" class="text-xs text-slate-500 dark:text-[#7f91a4] mt-0.5 transition-colors">Общий список задач и статусов</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div id="viewSwitcher" class="bg-slate-100 dark:bg-[#0e1621] p-1 rounded-md flex gap-0.5 border border-slate-200 dark:border-[#2b3643]">
+                                <button onclick="switchView('table')" id="btnTable" class="px-3 py-1.5 bg-white dark:bg-[#242f3d] text-blue-700 dark:text-blue-400 shadow-sm rounded text-xs font-semibold transition cursor-pointer"><i class="fa-solid fa-list mr-1"></i> Список</button>
+                                <button onclick="switchView('kanban')" id="btnKanban" class="px-3 py-1.5 text-slate-500 dark:text-[#7f91a4] hover:text-slate-800 dark:hover:text-[#e4ebf5] rounded text-xs font-semibold transition cursor-pointer"><i class="fa-solid fa-border-all mr-1"></i> Доска</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="filterSection" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 pt-4 border-t border-slate-100 dark:border-[#2b3643]">
+                        <div class="sm:col-span-2 lg:col-span-2">
+                            <label class="block text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Поиск</label>
+                            <div class="relative"><i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 dark:text-[#7f91a4] text-xs"></i><input type="text" id="searchInput" oninput="renderTickets()" placeholder="ID, Тема, Автор..." class="w-full pl-8 pr-3 py-1.5 rounded-md border border-slate-200 dark:border-[#2b3643] text-xs bg-slate-50 dark:bg-[#242f3d] text-slate-800 dark:text-[#e4ebf5] focus:outline-none focus:border-blue-500 transition font-medium"></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-1.5"><label class="block text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase tracking-wider">Дата</label><button onclick="document.getElementById('filterDate').value=''; renderTickets()" class="text-[9px] text-slate-400 hover:text-blue-500 font-medium transition cursor-pointer">Сбросить</button></div>
+                            <input type="date" id="filterDate" onchange="renderTickets()" class="w-full px-3 py-1.5 rounded-md border border-slate-200 dark:border-[#2b3643] text-xs bg-slate-50 dark:bg-[#242f3d] text-slate-800 dark:text-[#e4ebf5] focus:outline-none focus:border-blue-500 transition font-medium cursor-pointer">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Статус</label>
+                            <select id="filterStatus" onchange="renderTickets()" class="w-full px-3 py-1.5 rounded-md border border-slate-200 dark:border-[#2b3643] text-xs bg-slate-50 dark:bg-[#242f3d] text-slate-800 dark:text-[#e4ebf5] focus:outline-none focus:border-blue-500 transition font-medium cursor-pointer"><option value="ALL">Все статусы</option><option value="Новая">Новая</option><option value="Ожидает согласования">На согласовании</option><option value="В работе">В работе</option><option value="Решена">Решена</option><option value="Закрыта">Закрыта</option></select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Категория</label>
+                            <select id="filterCategory" onchange="renderTickets()" class="w-full px-3 py-1.5 rounded-md border border-slate-200 dark:border-[#2b3643] text-xs bg-slate-50 dark:bg-[#242f3d] text-slate-800 dark:text-[#e4ebf5] focus:outline-none focus:border-blue-500 transition font-medium cursor-pointer"><option value="ALL">Все категории</option><option value="Оборудование">Оборудование и ПК</option><option value="ПО и Доступы">ПО и Доступы</option><option value="Сеть и Интернет">Сеть и Интернет</option><option value="Печать и МФУ">Печать и МФУ</option><option value="Прочее">Прочее</option></select>
+                        </div>
+                        <div id="assigneeFilterBlock" class="hidden">
+                            <label class="block text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase tracking-wider mb-1.5">Исполнитель</label>
+                            <select id="filterAssignee" onchange="renderTickets()" class="w-full px-3 py-1.5 rounded-md border border-slate-200 dark:border-[#2b3643] text-xs bg-slate-50 dark:bg-[#242f3d] text-slate-800 dark:text-[#e4ebf5] focus:outline-none focus:border-blue-500 transition font-medium cursor-pointer"><option value="ALL">Все</option><option value="UNASSIGNED">Не назначены</option></select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Контейнер для списка (Morphdom) -->
+                <div id="tableViewWrapper" class="space-y-4">
+                    <div id="tableView" class="space-y-4"></div>
+                </div>
+
+                <div id="kanbanView" class="hidden grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div class="bg-white dark:bg-[#17212b] p-3 rounded-lg flex flex-col h-[75vh] border border-slate-200 dark:border-[#2b3643] shadow-sm"><h4 class="font-bold text-slate-800 dark:text-[#f5f5f5] text-[11px] uppercase tracking-wider mb-3 flex items-center justify-between px-1"><span class="flex items-center gap-1.5"><i class="fa-solid fa-circle text-[8px] text-purple-500"></i> Согласование</span> <span class="bg-slate-100 dark:bg-[#242f3d] text-slate-600 dark:text-[#7f91a4] px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200 dark:border-[#2b3643]" id="count-Ожидает согласования">0</span></h4><div id="col-Ожидает согласования" class="flex-1 overflow-y-auto space-y-3 pr-1" ondragover="event.preventDefault()" ondrop="dropTicket(event, 'Ожидает согласования')"></div></div>
+                    <div class="bg-white dark:bg-[#17212b] p-3 rounded-lg flex flex-col h-[75vh] border border-slate-200 dark:border-[#2b3643] shadow-sm"><h4 class="font-bold text-slate-800 dark:text-[#f5f5f5] text-[11px] uppercase tracking-wider mb-3 flex items-center justify-between px-1"><span class="flex items-center gap-1.5"><i class="fa-solid fa-circle text-[8px] text-blue-500"></i> Новые</span> <span class="bg-slate-100 dark:bg-[#242f3d] text-slate-600 dark:text-[#7f91a4] px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200 dark:border-[#2b3643]" id="count-Новая">0</span></h4><div id="col-Новая" class="flex-1 overflow-y-auto space-y-3 pr-1" ondragover="event.preventDefault()" ondrop="dropTicket(event, 'Новая')"></div></div>
+                    <div class="bg-white dark:bg-[#17212b] p-3 rounded-lg flex flex-col h-[75vh] border border-slate-200 dark:border-[#2b3643] shadow-sm"><h4 class="font-bold text-slate-800 dark:text-[#f5f5f5] text-[11px] uppercase tracking-wider mb-3 flex items-center justify-between px-1"><span class="flex items-center gap-1.5"><i class="fa-solid fa-circle text-[8px] text-amber-500"></i> В работе</span> <span class="bg-slate-100 dark:bg-[#242f3d] text-slate-600 dark:text-[#7f91a4] px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200 dark:border-[#2b3643]" id="count-В работе">0</span></h4><div id="col-В работе" class="flex-1 overflow-y-auto space-y-3 pr-1" ondragover="event.preventDefault()" ondrop="dropTicket(event, 'В работе')"></div></div>
+                    <div class="bg-white dark:bg-[#17212b] p-3 rounded-lg flex flex-col h-[75vh] border border-slate-200 dark:border-[#2b3643] shadow-sm"><h4 class="font-bold text-slate-800 dark:text-[#f5f5f5] text-[11px] uppercase tracking-wider mb-3 flex items-center justify-between px-1"><span class="flex items-center gap-1.5"><i class="fa-solid fa-circle text-[8px] text-emerald-500"></i> Решена</span> <span class="bg-slate-100 dark:bg-[#242f3d] text-slate-600 dark:text-[#7f91a4] px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200 dark:border-[#2b3643]" id="count-Решена">0</span></h4><div id="col-Решена" class="flex-1 overflow-y-auto space-y-3 pr-1" ondragover="event.preventDefault()" ondrop="dropTicket(event, 'Решена')"></div></div>
+                    <div class="bg-white dark:bg-[#17212b] p-3 rounded-lg flex flex-col h-[75vh] border border-slate-200 dark:border-[#2b3643] shadow-sm"><h4 class="font-bold text-slate-800 dark:text-[#f5f5f5] text-[11px] uppercase tracking-wider mb-3 flex items-center justify-between px-1"><span class="flex items-center gap-1.5"><i class="fa-solid fa-circle text-[8px] text-slate-500"></i> Закрыта</span> <span class="bg-slate-100 dark:bg-[#242f3d] text-slate-600 dark:text-[#7f91a4] px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200 dark:border-[#2b3643]" id="count-Закрыта">0</span></h4><div id="col-Закрыта" class="flex-1 overflow-y-auto space-y-3 pr-1" ondragover="event.preventDefault()" ondrop="dropTicket(event, 'Закрыта')"></div></div>
+                </div>
+                
+                <div id="massActionPanel" class="hidden fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-[#17212b] shadow-2xl border border-slate-200 dark:border-[#2b3643] rounded-lg p-3 flex items-center gap-4 fade-in z-40">
+                    <div class="text-xs font-bold text-slate-700 dark:text-[#e4ebf5]">Выбрано заявок: <span id="massCount" class="text-blue-600 dark:text-blue-400 text-sm">0</span></div>
+                    <button onclick="mergeSelectedTickets()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-bold uppercase tracking-wider transition shadow-sm cursor-pointer"><i class="fa-solid fa-link"></i> Связать в Инцидент</button>
+                    <button onclick="clearMassSelection()" class="text-slate-400 hover:text-slate-600 dark:hover:text-[#f5f5f5] text-xs px-2 cursor-pointer"><i class="fa-solid fa-times"></i> Отмена</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Модальные окна (Topology, CMDB, Tasks, Stats, Profile, RBAC, CSAT, FAQ) -->
+    <div id="topologyModal" class="hidden fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"><div class="bg-white dark:bg-[#17212b] rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col border border-slate-200 dark:border-[#2b3643] overflow-hidden transition-colors"><div class="p-4 border-b border-slate-200 dark:border-[#2b3643] flex justify-between items-center bg-slate-50 dark:bg-[#242f3d]"><div><h3 class="text-base font-bold text-slate-900 dark:text-[#f5f5f5] tracking-tight uppercase"><i class="fa-solid fa-network-wired mr-2 text-cyan-600 dark:text-cyan-400"></i>Интерактивная карта сети</h3><p class="text-[11px] text-slate-500 mt-1">Редактор топологии (Visio-style). Используйте панель управления для добавления узлов и связей.</p></div><div class="flex items-center gap-3"><button onclick="saveTopology()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-[11px] uppercase rounded-md shadow-sm">Сохранить схему</button><button onclick="closeTopologyModal()" class="w-8 h-8 rounded bg-slate-200 dark:bg-[#0e1621] hover:bg-slate-300 font-bold">&times;</button></div></div><div id="networkCanvas" class="flex-1 bg-[#ffffff] dark:bg-[#0e1621] relative cursor-crosshair"></div></div></div>
+    <div id="cmdbModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"><div class="bg-white dark:bg-[#17212b] rounded-lg shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col border border-slate-200 dark:border-[#2b3643] overflow-hidden"><div class="p-5 border-b border-slate-200 dark:border-[#2b3643] flex justify-between items-center bg-slate-50 dark:bg-[#242f3d]"><div><h3 class="text-base font-bold text-slate-900 dark:text-[#f5f5f5] uppercase"><i class="fa-solid fa-server mr-2 text-indigo-600"></i>Реестр оборудования (CMDB)</h3></div><button onclick="closeCmdbModal()" class="w-8 h-8 rounded bg-slate-200 dark:bg-[#0e1621] font-bold">&times;</button></div><div class="p-6 overflow-y-auto flex-1 bg-slate-100/50 dark:bg-[#0e1621]"><form onsubmit="addEquipment(event)" class="bg-white dark:bg-[#17212b] p-4 rounded-lg border border-slate-200 dark:border-[#2b3643] mb-6 shadow-sm"><div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3"><input type="text" id="eqName" required placeholder="Название" class="px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-xs focus:outline-none"><select id="eqType" class="px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-xs focus:outline-none"><option value="ПК">ПК / Ноутбук</option><option value="Сервер">Сервер</option><option value="Принтер">Принтер / МФУ</option><option value="Сетевое">Сетевое обор.</option></select><input type="text" id="eqInv" placeholder="Инв. номер" class="px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-xs focus:outline-none"><input type="text" id="eqIp" placeholder="IP адрес" class="px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-xs focus:outline-none"><input type="text" id="eqAnydesk" placeholder="AnyDesk ID" class="px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-xs focus:outline-none"><select id="eqUser" class="px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-xs focus:outline-none"><option value="">Не закреплено (Резерв)</option></select></div><button type="submit" class="w-full py-2 bg-indigo-600 text-white font-bold text-[11px] uppercase rounded-md shadow-sm">Добавить в реестр</button></form><table class="w-full text-left border-collapse bg-white dark:bg-[#17212b] rounded-lg border border-slate-200 dark:border-[#2b3643]"><thead class="bg-slate-50 dark:bg-[#242f3d]"><tr class="border-b text-[10px] font-bold text-slate-500 uppercase"><th class="py-3 px-4">Оборудование</th><th class="py-3 px-4">Инв. №</th><th class="py-3 px-4">Сеть</th><th class="py-3 px-4">Пользователь</th><th class="py-3 px-4 text-right">Удалить</th></tr></thead><tbody id="cmdbTableBody" class="divide-y divide-slate-100 dark:divide-[#2b3643] text-xs text-slate-800 dark:text-[#e4ebf5]"></tbody></table></div></div></div>
+    <div id="tasksModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"><div class="bg-white dark:bg-[#17212b] rounded-lg shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-slate-200 dark:border-[#2b3643] overflow-hidden transition-colors"><div class="p-5 border-b border-slate-200 dark:border-[#2b3643] flex justify-between items-center bg-slate-50 dark:bg-[#242f3d]"><div><h3 class="text-base font-bold text-slate-900 dark:text-[#f5f5f5] uppercase">Регламентные задачи</h3></div><button onclick="closeTasksModal()" class="w-8 h-8 rounded bg-slate-200 dark:bg-[#0e1621] font-bold">&times;</button></div><div class="p-6 overflow-y-auto flex-1 bg-slate-100/50 dark:bg-[#0e1621]"><form onsubmit="createScheduledTask(event)" class="bg-white dark:bg-[#17212b] p-4 rounded-lg border border-slate-200 dark:border-[#2b3643] mb-6 shadow-sm"><div class="grid grid-cols-2 gap-3 mb-3"><div class="col-span-2"><input type="text" id="taskTitle" required placeholder="Название" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm focus:outline-none"></div><div class="col-span-2"><textarea id="taskDesc" required rows="2" placeholder="Описание..." class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm focus:outline-none"></textarea></div><div class="col-span-2"><select id="taskAssignee" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm focus:outline-none"></select></div><div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Повторять</label><select id="taskFreq" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm focus:outline-none"><option value="DAILY">Каждый день</option><option value="WEEKLY">Раз в неделю</option><option value="MONTHLY">Раз в месяц</option></select></div><div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Первый запуск</label><input type="datetime-local" id="taskStartDate" required class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm focus:outline-none"></div></div><button type="submit" class="w-full py-2 bg-amber-500 text-white font-bold text-[11px] uppercase rounded-md shadow-sm">Запустить планировщик</button></form><div id="tasksAdminList" class="space-y-2"></div></div></div></div>
+    <div id="statsModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"><div class="bg-white dark:bg-[#17212b] rounded-lg shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border border-slate-200 dark:border-[#2b3643] overflow-hidden"><div class="p-5 border-b border-slate-200 dark:border-[#2b3643] flex justify-between items-center bg-slate-50 dark:bg-[#242f3d]"><div><h3 class="text-base font-bold text-slate-900 dark:text-[#f5f5f5] uppercase">Аналитический дашборд</h3></div><button onclick="closeStatsModal()" class="w-8 h-8 rounded bg-slate-200 dark:bg-[#0e1621] font-bold text-sm cursor-pointer">&times;</button></div><div class="p-6 overflow-y-auto flex-1 bg-slate-100/50 dark:bg-[#0e1621]"><div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"><div class="bg-white dark:bg-[#17212b] p-5 rounded-lg border border-slate-200 dark:border-[#2b3643] shadow-sm flex items-center justify-between"><div><p class="text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase mb-1">Всего заявок</p><h4 id="statTotal" class="text-3xl font-bold">0</h4></div><div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-[#2b5278]/30 text-blue-600 flex items-center justify-center text-xl"><i class="fa-solid fa-layer-group"></i></div></div><div class="bg-white dark:bg-[#17212b] p-5 rounded-lg border border-slate-200 dark:border-[#2b3643] shadow-sm flex items-center justify-between"><div><p class="text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase mb-1">В работе</p><h4 id="statActive" class="text-3xl font-bold text-amber-500">0</h4></div><div class="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xl"><i class="fa-solid fa-spinner"></i></div></div><div class="bg-white dark:bg-[#17212b] p-5 rounded-lg border border-slate-200 dark:border-[#2b3643] shadow-sm flex items-center justify-between"><div><p class="text-[10px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase mb-1">Средний балл</p><h4 id="statCsat" class="text-3xl font-bold text-emerald-500">0.0</h4></div><div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl"><i class="fa-solid fa-star"></i></div></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="bg-white dark:bg-[#17212b] p-5 rounded-lg border border-slate-200 dark:border-[#2b3643] shadow-sm"><h4 class="text-[11px] font-bold text-slate-500 uppercase mb-4">Статусы заявок</h4><div class="relative h-64"><canvas id="statusChart"></canvas></div></div><div class="bg-white dark:bg-[#17212b] p-5 rounded-lg border border-slate-200 dark:border-[#2b3643] shadow-sm"><h4 class="text-[11px] font-bold text-slate-500 uppercase mb-4">Динамика</h4><div class="relative h-64"><canvas id="dateChart"></canvas></div></div></div></div></div></div>
+    <div id="faqModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"><div class="bg-white dark:bg-[#17212b] rounded-lg shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-slate-200 dark:border-[#2b3643] overflow-hidden"><div class="p-5 border-b border-slate-200 dark:border-[#2b3643] flex justify-between items-center bg-slate-50 dark:bg-[#242f3d]"><div><h3 class="text-base font-bold text-slate-900 dark:text-[#f5f5f5] uppercase">База Знаний</h3></div><button onclick="closeFaqModal()" class="w-8 h-8 rounded bg-slate-200 dark:bg-[#0e1621] font-bold">&times;</button></div><div class="p-6 overflow-y-auto flex-1 bg-slate-100/50 dark:bg-[#0e1621]"><form onsubmit="createFaq(event)" class="bg-white dark:bg-[#17212b] p-4 rounded-lg border border-slate-200 dark:border-[#2b3643] mb-6"><div class="space-y-3"><input type="text" id="faqNewQuestion" required placeholder="Вопрос" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm focus:outline-none"><textarea id="faqNewAnswer" required rows="2" placeholder="Ответ" class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm focus:outline-none"></textarea><button type="submit" class="w-full py-2 bg-blue-600 text-white font-bold text-[11px] uppercase rounded-md cursor-pointer">Добавить</button></div></form><div id="faqAdminList" class="space-y-2"></div></div></div></div>
+    <div id="csatModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"><div class="bg-white dark:bg-[#17212b] rounded-lg shadow-2xl w-full max-w-sm flex flex-col border border-slate-200 dark:border-[#2b3643] overflow-hidden"><div class="p-5 border-b border-slate-200 dark:border-[#2b3643] flex justify-between items-center bg-slate-50 dark:bg-[#242f3d]"><h3 class="text-sm font-bold text-slate-900 dark:text-[#f5f5f5] uppercase">Оценка качества</h3><button onclick="closeCsatModal()" class="w-7 h-7 rounded bg-slate-200 dark:bg-[#0e1621] font-bold">&times;</button></div><div class="p-6 text-center space-y-4"><p class="text-xs text-slate-500">Оцените заявку <strong id="csatTicketId"></strong></p><div class="flex justify-center gap-2 text-3xl cursor-pointer mt-3 mb-2" id="starContainer" onmouseleave="highlightStars(selectedStars)"><i class="fa-solid fa-star text-slate-300 transition-all hover:-translate-y-1" onclick="setCsatRating(1)" onmouseover="highlightStars(1)"></i><i class="fa-solid fa-star text-slate-300 transition-all hover:-translate-y-1" onclick="setCsatRating(2)" onmouseover="highlightStars(2)"></i><i class="fa-solid fa-star text-slate-300 transition-all hover:-translate-y-1" onclick="setCsatRating(3)" onmouseover="highlightStars(3)"></i><i class="fa-solid fa-star text-slate-300 transition-all hover:-translate-y-1" onclick="setCsatRating(4)" onmouseover="highlightStars(4)"></i><i class="fa-solid fa-star text-slate-300 transition-all hover:-translate-y-1" onclick="setCsatRating(5)" onmouseover="highlightStars(5)"></i></div><textarea id="csatFeedbackText" rows="3" placeholder="Комментарий..." class="w-full px-3 py-2 rounded-md bg-slate-50 dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-xs focus:outline-none"></textarea><button onclick="submitCsatRating()" class="w-full py-2.5 bg-blue-600 text-white font-bold text-xs uppercase rounded-md cursor-pointer">Отправить</button></div></div></div>
+    <div id="profileModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"><div class="bg-white dark:bg-[#17212b] rounded-lg shadow-2xl w-full max-w-sm flex flex-col border border-slate-200 dark:border-[#2b3643] overflow-hidden"><div class="p-5 border-b border-slate-200 dark:border-[#2b3643] flex justify-between items-center bg-slate-50 dark:bg-[#242f3d]"><h3 class="text-sm font-bold text-slate-900 dark:text-[#f5f5f5] uppercase">Профиль</h3><button onclick="closeProfileModal()" class="w-7 h-7 rounded bg-slate-200 dark:bg-[#0e1621] font-bold">&times;</button></div><div class="p-6"><form onsubmit="saveProfile(event)" class="space-y-5"><div class="flex items-center gap-5 mb-2"><div class="relative group cursor-pointer shrink-0" onclick="document.getElementById('profAvatarInput').click()"><div id="profAvatarPreview" class="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden border-4 border-blue-500/20 shadow-sm"></div><div class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><i class="fa-solid fa-camera text-white text-lg"></i></div></div><div><p class="text-sm font-bold">Фото профиля</p></div><input type="file" id="profAvatarInput" class="hidden" accept="image/*" onchange="previewProfileAvatar(event)"></div><div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Логин</label><input type="text" id="profLogin" disabled class="w-full px-3 py-2 rounded-md bg-slate-100 dark:bg-[#0e1621] border border-slate-200 dark:border-[#2b3643] text-sm cursor-not-allowed"></div><div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">ФИО</label><input type="text" id="profFullName" required class="w-full px-3 py-2 rounded-md bg-white dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm focus:outline-none focus:border-blue-500"></div><div><label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Отдел</label><input type="text" id="profDept" required class="w-full px-3 py-2 rounded-md bg-white dark:bg-[#242f3d] border border-slate-300 dark:border-[#2b3643] text-sm focus:outline-none focus:border-blue-500"></div><button type="submit" class="w-full py-2.5 bg-blue-600 text-white font-bold uppercase text-[11px] rounded-md cursor-pointer">Сохранить</button></form></div></div></div>
+    <div id="rbacModal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"><div class="bg-white dark:bg-[#17212b] rounded-lg shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col border border-slate-200 dark:border-[#2b3643] overflow-hidden"><div class="p-5 border-b border-slate-200 dark:border-[#2b3643] flex justify-between items-center bg-slate-50 dark:bg-[#242f3d]"><div><h3 class="text-base font-bold uppercase dark:text-[#f5f5f5]">Права доступа</h3></div><button onclick="closeRbacModal()" class="w-8 h-8 rounded bg-slate-200 dark:bg-[#0e1621] font-bold">&times;</button></div><div class="p-0 overflow-y-auto flex-1"><table class="w-full text-left border-collapse"><thead class="bg-slate-50 dark:bg-[#0e1621]"><tr class="border-b border-slate-200 dark:border-[#2b3643] text-[10px] font-bold text-slate-500 uppercase"><th class="py-3 px-5">Сотрудник</th><th class="py-3 px-5">Отдел</th><th class="py-3 px-5">Роль</th><th class="py-3 px-5">Статус</th><th class="py-3 px-5 text-right">Действия</th></tr></thead><tbody id="usersTableBody" class="divide-y divide-slate-100 dark:divide-[#2b3643] text-sm"></tbody></table></div></div></div>
+
+    <script>
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        let currentUser = null;
+        let allTickets = [];
+        let allEquipment = [];
+        let faqList = [];
+        let usersMap = {}; 
+        let pastedImageFile = null;
+        let currentView = 'table';
+        let isDarkMode = localStorage.getItem('helpdesk_dark') !== 'false';
+        let activeCsatTicketId = null;
+        let selectedStars = 0;
+        let ws = null;
+        let chartStatus = null;
+        let chartDate = null;
+        let massSelectedTickets = new Set();
+        let topoNetwork = null;
+        let topoNodes = new vis.DataSet();
+        let topoEdges = new vis.DataSet();
+        let lastTicketsHash = "";
+        let lastUsersHash = "";
+
+        const catalogItems = [
+            {cat: 'Оборудование', t: 'Сбой ПК / Техники', d: 'Не включается, синий экран, проблема с монитором...', i: 'fa-desktop', c: 'blue'},
+            {cat: 'ПО и Доступы', t: 'Запрос доступа', d: 'Нужно установить программу, выдать права к папке...', i: 'fa-key', c: 'amber'},
+            {cat: 'Печать и МФУ', t: 'Принтеры / МФУ', d: 'Зажевало бумагу, закончился тонер. Инв. номер: ', i: 'fa-print', c: 'emerald'},
+            {cat: 'ПО и Доступы', t: 'Создание УЗ', d: 'ФИО сотрудника:\nДолжность:\nДата выхода:\nКакие права и доступы нужны: ', i: 'fa-user-plus', c: 'purple'},
+            {cat: 'Сеть и Интернет', t: 'Сеть и Интернет', d: 'Нет доступа к почте/сайтам, не работает Wi-Fi...', i: 'fa-wifi', c: 'rose'}
+        ];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedSession = localStorage.getItem('helpdesk_session');
+            if (savedSession) {
+                currentUser = JSON.parse(savedSession);
+                initApp();
+            }
+            setInterval(() => {
+                if(currentUser) {
+                    loadTickets(false);
+                    loadUsersMap();
+                }
+            }, 15000);
+            
+            applyTheme();
+            
+            const cg = document.getElementById('catalogGridContainer');
+            if(cg) {
+                catalogItems.forEach((x, i) => {
+                    let colSpan = (i === catalogItems.length - 1 && catalogItems.length % 2 !== 0) ? 'col-span-2' : '';
+                    cg.innerHTML += `<div onclick="openCatalogForm('${x.cat}', '${x.t}', '${x.d.replace(/\\n/g, '\n')}')" class="bg-slate-50 dark:bg-[#242f3d] border border-slate-200 dark:border-[#2b3643] rounded-lg p-3 text-center cursor-pointer hover:border-${x.c}-500 hover:bg-${x.c}-50 dark:hover:bg-${x.c}-900/20 transition group ${colSpan}">
+                        <i class="fa-solid ${x.i} text-2xl text-slate-400 dark:text-[#7f91a4] group-hover:text-${x.c}-500 mb-2 transition"></i>
+                        <p class="text-[10px] font-bold text-slate-700 dark:text-[#e4ebf5] uppercase tracking-wider">${x.t}</p>
+                    </div>`;
+                });
+            }
+        });
+
+        function toggleDropdown() {
+            document.getElementById('profileDropdown').classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('profileDropdown');
+            const button = document.getElementById('dropdownBtn');
+            if (dropdown && button && !button.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        function switchMobileTab(tab) {
+            document.getElementById('leftPanel').classList.toggle('hidden', tab !== 'catalog');
+            document.getElementById('leftPanel').classList.toggle('flex', tab === 'catalog');
+            document.getElementById('rightPanel').classList.toggle('hidden', tab !== 'registry');
+            document.getElementById('rightPanel').classList.toggle('flex', tab === 'registry');
+            
+            document.getElementById('mobNavCat').className = tab === 'catalog' ? "flex flex-col items-center justify-center w-full text-blue-600 dark:text-blue-400 py-1 transition cursor-pointer" : "flex flex-col items-center justify-center w-full text-slate-400 dark:text-[#7f91a4] py-1 transition cursor-pointer";
+            document.getElementById('mobNavReg').className = tab === 'registry' ? "flex flex-col items-center justify-center w-full text-blue-600 dark:text-blue-400 py-1 transition cursor-pointer" : "flex flex-col items-center justify-center w-full text-slate-400 dark:text-[#7f91a4] py-1 transition cursor-pointer";
+        }
+
+        let wsPingInterval;
+        function connectWS() {
+            if (!currentUser) return;
+            let protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            ws = new WebSocket(protocol + window.location.host + '/ws/' + encodeURIComponent(currentUser.login));
+            
+            ws.onopen = function() {
+                wsPingInterval = setInterval(() => {
+                    if (ws.readyState === WebSocket.OPEN) ws.send("ping");
+                }, 20000);
+            };
+            
+            ws.onmessage = function(event) {
+                if (event.data === 'update') loadTickets(false); 
+                else if (event.data === 'update_users') loadUsersMap();
+            };
+            
+            ws.onclose = function() { 
+                clearInterval(wsPingInterval);
+                setTimeout(connectWS, 3000); 
+            };
+        }
+
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            let bgClass = type === 'error' ? 'bg-red-600' : (type === 'info' ? 'bg-[#242f3d]' : 'bg-blue-600');
+            let icon = type === 'error' ? 'fa-circle-exclamation' : (type === 'info' ? 'fa-bell' : 'fa-circle-check');
+            
+            toast.className = `toast-slide px-4 py-3 rounded shadow-xl border border-white/10 text-white text-xs font-semibold flex items-center gap-2.5 z-[9999] ${bgClass}`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i> ${msg}`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.replace('toast-slide', 'opacity-0');
+                toast.classList.add('transition-opacity', 'duration-300');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function parseCustomDate(dateStr) {
+            if (!dateStr) return new Date();
+            let [dPart, tPart] = dateStr.split(' ');
+            if (!dPart || !tPart) return new Date();
+            let [d, m, y] = dPart.split('.');
+            let [H, M] = tPart.split(':');
+            return new Date(y, m - 1, d, H, M);
+        }
+
+        function updateSLATimers() {
+            document.querySelectorAll('.sla-countdown').forEach(el => {
+                let status = el.getAttribute('data-status');
+                if (status === 'Ожидает согласования') {
+                    el.innerHTML = '<span class="text-purple-500 dark:text-purple-400 font-bold"><i class="fa-solid fa-hourglass-half"></i> Пауза (Согласование)</span>';
+                    return;
+                }
+                if (status === 'Решена' || status === 'Закрыта') {
+                    el.innerHTML = '<span class="text-slate-400 dark:text-[#7f91a4] font-bold"><i class="fa-solid fa-pause"></i> Остановлен</span>';
+                    return;
+                }
+                let createdStr = el.getAttribute('data-created');
+                let slaStr = el.getAttribute('data-sla');
+                let hours = 8;
+                if (slaStr.includes('2')) hours = 2;
+                if (slaStr.includes('24')) hours = 24;
+
+                let cDate = parseCustomDate(createdStr);
+                cDate.setHours(cDate.getHours() + hours);
+                let now = new Date();
+                let diffMs = cDate - now;
+
+                if (diffMs < 0) {
+                    el.innerHTML = '<span class="text-red-600 dark:text-red-400 font-bold animate-pulse"><i class="fa-solid fa-fire mr-1"></i> ПРОСРОЧЕНО</span>';
+                } else {
+                    let h = Math.floor(diffMs / (1000 * 60 * 60));
+                    let m = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    let s = Math.floor((diffMs % (1000 * 60)) / 1000);
+                    
+                    let color = (h < 1) ? 'text-amber-500 animate-pulse' : 'text-slate-500 dark:text-[#7f91a4]';
+                    let formatted = `<i class="fa-solid fa-stopwatch mr-1"></i> ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                    el.innerHTML = `<span class="${color} font-bold tracking-wider">${formatted}</span>`;
+                }
+            });
+        }
+        setInterval(updateSLATimers, 1000);
+
+        function applyTheme() {
+            const themeBtn = document.getElementById('themeToggleBtn');
+            if (isDarkMode) {
+                document.documentElement.classList.add('dark');
+                if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-sun text-xs text-amber-400"></i>';
+            } else {
+                document.documentElement.classList.remove('dark');
+                if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-moon text-xs"></i>';
+            }
+            if(topoNetwork) topoNetwork.redraw();
+        }
+        
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            localStorage.setItem('helpdesk_dark', isDarkMode);
+            applyTheme();
+            if (allTickets.length > 0) renderTickets();
+        }
+
+        function getCatIconHtml(cat) {
+            let icon = 'fa-folder';
+            if (cat === 'Оборудование') icon = 'fa-server';
+            else if (cat === 'ПО и Доступы') icon = 'fa-shield-halved';
+            else if (cat === 'Сеть и Интернет') icon = 'fa-network-wired';
+            else if (cat === 'Печать и МФУ') icon = 'fa-print';
+            else if (cat === 'Прочее') icon = 'fa-cube';
+            return `<i class="fa-solid ${icon} opacity-70 mr-1.5"></i>`;
+        }
+
+        function getPriorityHtml(priority) {
+            let color = 'bg-slate-400 dark:bg-[#7f91a4]';
+            if (priority === 'Высокий') color = 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.7)]';
+            if (priority === 'Средний') color = 'bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.7)]';
+            if (priority === 'Низкий') color = 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]';
+            return `<span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-[#e4ebf5]">
+                        <span class="w-1.5 h-1.5 rounded-full ${color}"></span>${priority}
+                    </span>`;
+        }
+
+        function getAvatarHtml(login, nameFallback, size = 'w-7 h-7', textSize = 'text-[11px]') {
+            if (login === "Система") {
+                return `<div class="${size} shrink-0 rounded-full bg-[#242f3d] text-[#7f91a4] ${textSize} flex items-center justify-center border border-[#2b3643] shadow-sm"><i class="fa-solid fa-robot"></i></div>`;
+            }
+            
+            const userObj = usersMap[login] || {};
+            const nameToUse = userObj.fullName || nameFallback || login || "User";
+            
+            const isOnlineHtml = userObj.isOnline 
+                ? `<div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-[#17212b] rounded-full"></div>` 
+                : '';
+
+            let imgHtml = '';
+            if (userObj.avatarPath) {
+                imgHtml = `<img src="${userObj.avatarPath}" class="${size} rounded-full object-cover shadow-sm border border-slate-200 dark:border-[#2b3643]" title="${nameToUse}">`;
+            } else {
+                const initials = nameToUse.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                let hash = 0;
+                for (let i = 0; i < nameToUse.length; i++) hash = nameToUse.charCodeAt(i) + ((hash << 5) - hash);
+                const color = `hsl(${hash % 360}, 55%, 45%)`;
+                imgHtml = `<div class="${size} rounded-full text-white ${textSize} flex items-center justify-center font-bold shadow-sm border border-black/10" style="background-color: ${color};" title="${nameToUse}">${initials}</div>`;
+            }
+            return `<div class="relative inline-block shrink-0">${imgHtml}${isOnlineHtml}</div>`;
+        }
+
+        async function loadUsersMap() {
+            try {
+                const res = await fetch('/api/users_map?_t=' + Date.now(), { cache: "no-store" });
+                if (res.ok) {
+                    const newUsers = await res.json();
+                    const newHash = JSON.stringify(newUsers);
+                    if (lastUsersHash === newHash) return; 
+                    lastUsersHash = newHash;
+                    
+                    usersMap = newUsers;
+                    updateOnSiteCounter();
+                    
+                    const fa = document.getElementById('filterAssignee');
+                    if (fa) {
+                        fa.innerHTML = '<option value="ALL">Все</option><option value="UNASSIGNED">Не назначены</option>';
+                        for (let login in usersMap) {
+                            if (usersMap[login].roleKey !== 'user') {
+                                fa.innerHTML += `<option value="${login}">${usersMap[login].fullName}</option>`;
+                            }
+                        }
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        async function loadEquipment() {
+            try {
+                const res = await fetch('/api/equipment?_t=' + Date.now(), { cache: "no-store" });
+                if (res.ok) {
+                    allEquipment = await res.json();
+                }
+            } catch (e) {}
+        }
+
+        function updateOnSiteCounter() {
+            if (!usersMap || !currentUser) return;
+            if (usersMap[currentUser.login]) usersMap[currentUser.login].isOnline = true; 
+            
+            let onSiteCount = 0;
+            for (let login in usersMap) {
+                let u = usersMap[login];
+                if (u.roleKey === 'engineer' && u.isOnSite) {
+                    const hasActiveTasks = allTickets.some(t => t.assignee === login && t.status === 'В работе');
+                    if (!hasActiveTasks) onSiteCount++;
+                }
+            }
+            
+            const countEl = document.getElementById('onSiteCountText');
+            const counterBox = document.getElementById('onSiteCounter');
+            const btn = document.getElementById('engineerOnSiteBtn');
+
+            if(counterBox && countEl) {
+                countEl.innerText = onSiteCount;
+                counterBox.classList.remove('hidden');
+                counterBox.classList.add('flex');
+            }
+
+            if (btn) {
+                if (currentUser.roleKey === 'engineer') {
+                    btn.classList.remove('hidden');
+                    btn.classList.add('flex');
+                    const myStatus = usersMap[currentUser.login]?.isOnSite;
+                    if (myStatus) {
+                        btn.className = "px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold border border-emerald-700 transition shadow-sm flex items-center gap-1.5 cursor-pointer";
+                        btn.innerHTML = '<i class="fa-solid fa-toggle-on"></i> <span class="hidden sm:inline">На смене</span>';
+                    } else {
+                        btn.className = "px-3 py-1.5 bg-slate-100 dark:bg-[#242f3d] hover:bg-slate-200 dark:hover:bg-[#2b3643] text-slate-600 dark:text-[#7f91a4] rounded-md text-xs font-semibold border border-slate-200 dark:border-[#2b3643] transition shadow-sm flex items-center gap-1.5 cursor-pointer";
+                        btn.innerHTML = '<i class="fa-solid fa-toggle-off"></i> <span class="hidden sm:inline">Вне смены</span>';
+                    }
+                } else {
+                    btn.classList.add('hidden');
+                    btn.classList.remove('flex');
+                }
+            }
+
+            const avatarEl = document.getElementById('headerAvatar');
+            if (avatarEl) avatarEl.innerHTML = getAvatarHtml(currentUser.login, currentUser.fullName, 'w-6 h-6', 'text-[9px]');
+        }
+
+        async function toggleMyOnSiteStatus(event) {
+            if (event) event.preventDefault();
+            if (!usersMap[currentUser.login]) return;
+            
+            const currentStatus = usersMap[currentUser.login].isOnSite;
+            const newStatus = !currentStatus;
+            
+            usersMap[currentUser.login].isOnSite = newStatus;
+            updateOnSiteCounter();
+            
+            try {
+                const res = await fetch(`/api/users/${currentUser.login}/onsite?status=${newStatus ? 'true' : 'false'}`, {method: 'POST'});
+                if(!res.ok) throw new Error();
+            } catch(e) {
+                usersMap[currentUser.login].isOnSite = currentStatus;
+                updateOnSiteCounter();
+                showToast('Ошибка сети при смене статуса', 'error');
+            }
+        }
+
+        function updateKPI() {
+            if (!currentUser || currentUser.roleKey === 'user') return;
+            const counts = { 'Новая': 0, 'В работе': 0, 'Решена': 0, 'Закрыта': 0 };
+            allTickets.forEach(t => {
+                if(counts[t.status] !== undefined) counts[t.status]++;
+            });
+            document.getElementById('kpi-new').innerText = counts['Новая'];
+            document.getElementById('kpi-work').innerText = counts['В работе'];
+            document.getElementById('kpi-resolved').innerText = counts['Решена'];
+            document.getElementById('kpi-closed').innerText = counts['Закрыта'];
+        }
+        
+        function openCatalogForm(category, titleStr, descStr) {
+            document.getElementById('serviceCatalogView').classList.add('hidden');
+            document.getElementById('ticketFormContainer').classList.remove('hidden');
+            
+            document.getElementById('ticketCategory').value = category;
+            document.getElementById('ticketTitle').value = titleStr;
+            document.getElementById('ticketDesc').value = descStr;
+            
+            const eqSelect = document.getElementById('ticketEquipment');
+            eqSelect.innerHTML = '<option value="">Связать с устройством (Опционально)...</option>';
+            const myEq = allEquipment.filter(e => e.assigned_to === currentUser.login);
+            myEq.forEach(eq => {
+                eqSelect.innerHTML += `<option value="${eq.id}">${eq.name} (IP: ${eq.ip_address || 'Нет'})</option>`;
+            });
+        }
+
+        function closeCatalogForm() {
+            document.getElementById('serviceCatalogView').classList.remove('hidden');
+            document.getElementById('ticketFormContainer').classList.add('hidden');
+            
+            document.getElementById('ticketTitle').value = '';
+            document.getElementById('ticketDesc').value = '';
+            document.getElementById('ticketEquipment').value = '';
+            clearImage();
+        }
+
+        document.getElementById('pasteZone').addEventListener('click', () => {
+            document.getElementById('ticketFileInput').click();
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                pastedImageFile = file;
+                document.getElementById('fileNameLabel').innerText = file.name;
+                document.getElementById('filePreviewContainer').classList.remove('hidden');
+                document.getElementById('pasteHint').classList.add('hidden');
+                document.getElementById('clearImgBtn').classList.remove('hidden');
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        const preview = document.getElementById('previewImg');
+                        preview.src = ev.target.result;
+                        preview.classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    document.getElementById('previewImg').classList.add('hidden');
+                }
+            }
+        }
+
+        window.addEventListener('paste', (e) => {
+            const items = e.clipboardData.items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    pastedImageFile = item.getAsFile();
+                    document.getElementById('fileNameLabel').innerText = "Скриншот.png";
+                    document.getElementById('filePreviewContainer').classList.remove('hidden');
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const preview = document.getElementById('previewImg');
+                        preview.src = event.target.result;
+                        preview.classList.remove('hidden');
+                        document.getElementById('pasteHint').classList.add('hidden');
+                        document.getElementById('clearImgBtn').classList.remove('hidden');
+                    }
+                    reader.readAsDataURL(pastedImageFile);
+                }
+            }
+        });
+
+        function clearImage(e) {
+            if (e) e.stopPropagation();
+            pastedImageFile = null;
+            document.getElementById('ticketFileInput').value = '';
+            document.getElementById('previewImg').classList.add('hidden');
+            document.getElementById('filePreviewContainer').classList.add('hidden');
+            document.getElementById('clearImgBtn').classList.add('hidden');
+            document.getElementById('pasteHint').classList.remove('hidden');
+        }
+
+        function quickLogin(role) {
+            if (role === 'admin') {
+                document.getElementById('loginInput').value = 'admin';
+                document.getElementById('passInput').value = 'LocalAdminPass!';
+            } else if (role === 'engineer') {
+                document.getElementById('loginInput').value = 'engineer';
+                document.getElementById('passInput').value = '12345';
+            } else {
+                document.getElementById('loginInput').value = 'user';
+                document.getElementById('passInput').value = '12345';
+            }
+            document.getElementById('loginForm').requestSubmit();
+        }
+
+        async function handleLogin(e) {
+            if (e) e.preventDefault();
+            const login = document.getElementById('loginInput').value.trim();
+            const pass = document.getElementById('passInput').value;
+            
+            try {
+                const res = await fetch(`/api/login?login=${encodeURIComponent(login)}&password=${encodeURIComponent(pass)}`, { 
+                    method: 'POST' 
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('access_token', data.token); 
+                    localStorage.setItem('helpdesk_session', JSON.stringify(data));
+                    currentUser = data; 
+                    await initApp();
+                    showToast(`Добро пожаловать, ${currentUser.fullName}!`, 'success');
+                } else {
+                    const err = await res.json();
+                    showToast('Ошибка входа: ' + (err.detail || 'Неверные данные'), 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Ошибка соединения с сервером', 'error');
+            }
+        }
+
+        async function initApp() {
+            document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('appInterface').classList.remove('hidden');
+            
+            await loadUsersMap();
+            await loadEquipment();
+            
+            if(document.getElementById('userNameDisplay')) document.getElementById('userNameDisplay').innerText = currentUser.fullName || currentUser.login;
+            if(document.getElementById('headerAvatar')) document.getElementById('headerAvatar').innerHTML = getAvatarHtml(currentUser.login, currentUser.fullName, 'w-6 h-6', 'text-[9px]');
+
+            const roleBadge = document.getElementById('userRoleBadge');
+            const leftPanel = document.getElementById('leftPanel');
+            const rightPanel = document.getElementById('rightPanel');
+            
+            const adminRbacBtn = document.getElementById('adminRbacBtn');
+            const adminReportBtn = document.getElementById('adminReportBtn');
+            const adminStatsBtn = document.getElementById('adminStatsBtn');
+            const adminFaqBtn = document.getElementById('adminFaqBtn');
+            const adminTasksBtn = document.getElementById('adminTasksBtn');
+            const adminCmdbBtn = document.getElementById('adminCmdbBtn');
+            const adminTopoBtn = document.getElementById('adminTopoBtn');
+            
+            const registryTitle = document.getElementById('registryTitle');
+            const registrySubtitle = document.getElementById('registrySubtitle');
+            const viewSwitcher = document.getElementById('viewSwitcher');
+            const assigneeFilterBlock = document.getElementById('assigneeFilterBlock');
+            const kpiBox = document.getElementById('kpiDashboard');
+
+            if (window.innerWidth < 1024) {
+                document.getElementById('mobileBottomNav').classList.remove('hidden');
+                document.getElementById('mobileBottomNav').classList.add('flex');
+            }
+
+            if (currentUser.roleKey === 'admin') {
+                if(roleBadge) {
+                    roleBadge.innerText = 'Админ';
+                    roleBadge.className = 'text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-[#2b213b] dark:text-[#b498e5] dark:border-[#483363] border border-purple-200 ml-2';
+                }
+                
+                leftPanel.classList.add('hidden');
+                leftPanel.classList.remove('lg:flex');
+                rightPanel.className = 'lg:col-span-4 flex-col gap-6 relative w-full hidden lg:flex fade-in';
+                
+                if(adminRbacBtn) { adminRbacBtn.classList.remove('hidden'); adminRbacBtn.classList.add('flex'); }
+                if(adminReportBtn) { adminReportBtn.classList.remove('hidden'); adminReportBtn.classList.add('flex'); }
+                if(adminStatsBtn) { adminStatsBtn.classList.remove('hidden'); adminStatsBtn.classList.add('flex'); }
+                if(adminCmdbBtn) { adminCmdbBtn.classList.remove('hidden'); adminCmdbBtn.classList.add('flex'); }
+                if(adminTopoBtn) { adminTopoBtn.classList.remove('hidden'); adminTopoBtn.classList.add('flex'); }
+                if(adminFaqBtn) { adminFaqBtn.classList.remove('hidden'); adminFaqBtn.classList.add('flex'); }
+                if(adminTasksBtn) { adminTasksBtn.classList.remove('hidden'); adminTasksBtn.classList.add('flex'); }
+                
+                if(viewSwitcher) viewSwitcher.classList.remove('hidden');
+                if(assigneeFilterBlock) assigneeFilterBlock.classList.remove('hidden');
+                if(kpiBox) { kpiBox.classList.remove('hidden'); kpiBox.classList.add('grid'); }
+                if(registryTitle) registryTitle.innerText = 'Панель администратора';
+                if(registrySubtitle) registrySubtitle.innerText = 'Полный контроль над системными обращениями';
+                
+                if (window.innerWidth < 1024) switchMobileTab('registry');
+            } else if (currentUser.roleKey === 'engineer') {
+                if(roleBadge) {
+                    roleBadge.innerText = 'Инженер';
+                    roleBadge.className = 'text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider bg-amber-100 text-amber-700 dark:bg-[#362b1a] dark:text-[#dfb365] dark:border-[#524124] border border-amber-200 ml-2';
+                }
+                
+                leftPanel.classList.add('hidden'); 
+                leftPanel.classList.remove('lg:flex');
+                rightPanel.className = 'lg:col-span-4 flex-col gap-6 relative w-full hidden lg:flex fade-in';
+                
+                if(adminRbacBtn) adminRbacBtn.classList.add('hidden');
+                if(adminReportBtn) adminReportBtn.classList.add('hidden');
+                if(adminStatsBtn) adminStatsBtn.classList.add('hidden');
+                if(adminCmdbBtn) { adminCmdbBtn.classList.remove('hidden'); adminCmdbBtn.classList.add('flex'); }
+                if(adminTopoBtn) { adminTopoBtn.classList.remove('hidden'); adminTopoBtn.classList.add('flex'); }
+                if(adminFaqBtn) adminFaqBtn.classList.add('hidden');
+                if(adminTasksBtn) adminTasksBtn.classList.add('hidden');
+                
+                if(viewSwitcher) viewSwitcher.classList.remove('hidden');
+                if(assigneeFilterBlock) assigneeFilterBlock.classList.remove('hidden');
+                if(kpiBox) { kpiBox.classList.remove('hidden'); kpiBox.classList.add('grid'); }
+                if(registryTitle) registryTitle.innerText = 'Очередь задач';
+                if(registrySubtitle) registrySubtitle.innerText = 'Обработка обращений пользователей (Real-time)';
+                
+                if (window.innerWidth < 1024) switchMobileTab('registry');
+            } else {
+                if(roleBadge) {
+                    roleBadge.innerText = 'Пользователь';
+                    roleBadge.className = 'text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider bg-slate-200 text-slate-700 dark:bg-[#242f3d] dark:text-[#e4ebf5] dark:border-[#2b3643] border border-slate-300 ml-2';
+                }
+                
+                leftPanel.classList.remove('hidden'); 
+                rightPanel.className = 'lg:col-span-3 flex-col gap-6 relative w-full hidden lg:flex fade-in';
+                
+                if(adminRbacBtn) adminRbacBtn.classList.add('hidden');
+                if(adminReportBtn) adminReportBtn.classList.add('hidden');
+                if(adminStatsBtn) adminStatsBtn.classList.add('hidden');
+                if(adminCmdbBtn) adminCmdbBtn.classList.add('hidden');
+                if(adminTopoBtn) adminTopoBtn.classList.add('hidden');
+                if(adminFaqBtn) adminFaqBtn.classList.add('hidden');
+                if(adminTasksBtn) adminTasksBtn.classList.add('hidden');
+                
+                if(viewSwitcher) viewSwitcher.classList.add('hidden');
+                if(assigneeFilterBlock) assigneeFilterBlock.classList.add('hidden');
+                if(kpiBox) { kpiBox.classList.add('hidden'); kpiBox.classList.remove('grid'); }
+                if(registryTitle) registryTitle.innerText = 'Мои обращения';
+                if(registrySubtitle) registrySubtitle.innerText = 'История и статус выполнения заявок';
+                switchView('table');
+                
+                if (window.innerWidth < 1024) switchMobileTab('catalog');
+            }
+            
+            connectWS();
+            await loadFaq();
+            await loadTickets();
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('helpdesk_session'); 
+            if(ws) ws.close();
+            location.reload(); 
+        }
+
+        async function openCmdbModal() {
+            document.getElementById('cmdbModal').classList.remove('hidden');
+            await renderCmdbTable();
+            
+            const userSelect = document.getElementById('eqUser');
+            userSelect.innerHTML = '<option value="">Не закреплено (Резерв)</option>';
+            for (let login in usersMap) {
+                userSelect.innerHTML += `<option value="${login}">${usersMap[login].fullName} (${login})</option>`;
+            }
+        }
+        
+        function closeCmdbModal() { document.getElementById('cmdbModal').classList.add('hidden'); }
+        
+        async function renderCmdbTable() {
+            await loadEquipment();
+            const tbody = document.getElementById('cmdbTableBody');
+            tbody.innerHTML = '';
+            allEquipment.forEach(eq => {
+                let icon = 'fa-desktop';
+                if(eq.type === 'Сервер') icon = 'fa-server';
+                if(eq.type === 'Принтер') icon = 'fa-print';
+                if(eq.type === 'Сетевое') icon = 'fa-network-wired';
+                
+                let userStr = eq.assigned_to ? (usersMap[eq.assigned_to]?.fullName || eq.assigned_to) : '<span class="text-slate-400">В резерве</span>';
+                
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-[#242f3d]/50 transition">
+                        <td class="py-2 px-4"><div class="flex items-center gap-2"><div class="w-8 h-8 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center"><i class="fa-solid ${icon}"></i></div><div><div class="font-bold">${eq.name}</div><div class="text-[10px] text-slate-500 uppercase tracking-wider">${eq.type}</div></div></div></td>
+                        <td class="py-2 px-4 font-mono text-[11px]">${eq.inv_number || '-'}</td>
+                        <td class="py-2 px-4"><div class="text-[11px]"><span class="font-bold text-slate-600 dark:text-slate-400">IP:</span> ${eq.ip_address || '-'} <br> <span class="font-bold text-slate-600 dark:text-slate-400">AD:</span> ${eq.anydesk_id || '-'}</div></td>
+                        <td class="py-2 px-4 text-xs font-semibold">${userStr}</td>
+                        <td class="py-2 px-4 text-right"><button onclick="deleteEquipment(${eq.id})" class="text-red-500 hover:text-red-700 cursor-pointer p-1"><i class="fa-solid fa-trash"></i></button></td>
+                    </tr>
+                `;
+            });
+        }
+        
+        async function addEquipment(e) {
+            e.preventDefault();
+            const fd = new FormData();
+            fd.append('name', document.getElementById('eqName').value.trim());
+            fd.append('type', document.getElementById('eqType').value);
+            fd.append('inv_number', document.getElementById('eqInv').value.trim());
+            fd.append('ip_address', document.getElementById('eqIp').value.trim());
+            fd.append('anydesk_id', document.getElementById('eqAnydesk').value.trim());
+            fd.append('assigned_to', document.getElementById('eqUser').value);
+            
+            const res = await fetch('/api/equipment', {method: 'POST', body: fd});
+            if(res.ok) {
+                e.target.reset();
+                showToast('Оборудование добавлено', 'success');
+                await renderCmdbTable();
+            }
+        }
+        
+        async function deleteEquipment(id) {
+            if(!confirm('Удалить из реестра?')) return;
+            const res = await fetch(`/api/equipment/${id}`, {method: 'DELETE'});
+            if(res.ok) {
+                showToast('Удалено', 'info');
+                await renderCmdbTable();
+            }
+        }
+        
+        async function openTopologyModal() {
+            document.getElementById('topologyModal').classList.remove('hidden');
+            
+            const res = await fetch('/api/topology?_t=' + Date.now());
+            const dbData = await res.json();
+            
+            topoNodes.clear(); topoEdges.clear();
+            if(dbData.nodes) topoNodes.add(dbData.nodes);
+            if(dbData.edges) topoEdges.add(dbData.edges);
+
+            const container = document.getElementById('networkCanvas');
+            const data = { nodes: topoNodes, edges: topoEdges };
+            
+            const options = {
+                manipulation: { 
+                    enabled: true,
+                    initiallyActive: true,
+                    addNode: function(nodeData, callback) {
+                        nodeData.label = prompt("Название узла:", "Новый узел") || "Узел";
+                        nodeData.shape = 'box';
+                        nodeData.color = { background: '#2563eb', border: '#1d4ed8' };
+                        nodeData.font = { color: 'white' };
+                        callback(nodeData);
+                    }
+                },
+                physics: { enabled: false }, 
+                edges: { arrows: 'to', color: { color: '#94a3b8' }, smooth: { type: 'cubicBezier' } }
+            };
+            
+            if(!topoNetwork) {
+                topoNetwork = new vis.Network(container, data, options);
+            } else {
+                topoNetwork.setData(data);
+                topoNetwork.redraw();
+            }
+        }
+        
+        function closeTopologyModal() { document.getElementById('topologyModal').classList.add('hidden'); }
+        
+        async function saveTopology() {
+            const data = {
+                nodes: topoNodes.get(),
+                edges: topoEdges.get()
+            };
+            const res = await fetch('/api/topology', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            if(res.ok) showToast('Топология успешно сохранена', 'success');
+        }
+
+        async function loadFaq() {
+            try {
+                const res = await fetch('/api/faq?_t=' + Date.now(), { cache: "no-store" });
+                if (res.ok) {
+                    faqList = await res.json();
+                    renderFaq();
+                }
+            } catch (e) {}
+        }
+        
+        function renderFaq() {
+            const container = document.getElementById('faqContainer');
+            const adminList = document.getElementById('faqAdminList');
+            if(container) container.innerHTML = '';
+            if(adminList) adminList.innerHTML = '';
+
+            if (faqList.length === 0) {
+                if(container) container.innerHTML = '<p class="text-[11px] opacity-60">База знаний пока пуста</p>';
+                if(adminList) adminList.innerHTML = '<p class="text-[11px] opacity-60">Нет записей</p>';
+                return;
+            }
+
+            faqList.forEach(f => {
+                if(container) {
+                    container.innerHTML += `
+                        <details class="text-xs cursor-pointer text-slate-700 dark:text-[#e4ebf5] group">
+                            <summary class="font-bold hover:text-blue-600 dark:hover:text-blue-400 transition outline-none">${f.question}</summary>
+                            <div class="mt-2 pl-3 py-1 border-l-2 border-slate-300 dark:border-[#2b3643] text-slate-600 dark:text-[#7f91a4] leading-relaxed whitespace-pre-wrap">${f.answer}</div>
+                        </details>
+                    `;
+                }
+                
+                if(adminList) {
+                    adminList.innerHTML += `
+                        <div class="flex justify-between items-start gap-4 p-3 rounded border border-slate-200 dark:border-[#2b3643] bg-white dark:bg-[#242f3d]">
+                            <div>
+                                <h5 class="font-bold text-xs text-slate-800 dark:text-[#f5f5f5]">${f.question}</h5>
+                                <p class="text-[10px] text-slate-500 dark:text-[#7f91a4] mt-1 line-clamp-2">${f.answer}</p>
+                            </div>
+                            <button onclick="deleteFaq(${f.id})" class="text-red-500 hover:text-red-700 text-xs shrink-0 cursor-pointer"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        function openFaqModal() { document.getElementById('faqModal').classList.remove('hidden'); }
+        function closeFaqModal() { document.getElementById('faqModal').classList.add('hidden'); }
+        
+        async function createFaq(e) {
+            e.preventDefault();
+            const fd = new FormData();
+            fd.append('question', document.getElementById('faqNewQuestion').value.trim());
+            fd.append('answer', document.getElementById('faqNewAnswer').value.trim());
+            const res = await fetch('/api/faq', {method: 'POST', body: fd});
+            if(res.ok) {
+                document.getElementById('faqNewQuestion').value = '';
+                document.getElementById('faqNewAnswer').value = '';
+                showToast('Статья добавлена', 'success');
+                await loadFaq();
+            }
+        }
+
+        async function deleteFaq(id) {
+            if(!confirm('Удалить статью?')) return;
+            const res = await fetch(`/api/faq/${id}`, {method: 'DELETE'});
+            if(res.ok) {
+                showToast('Статья удалена', 'info');
+                await loadFaq();
+            }
+        }
+
+        async function openTasksModal() {
+            document.getElementById('tasksModal').classList.remove('hidden');
+            
+            const assigneeSelect = document.getElementById('taskAssignee');
+            assigneeSelect.innerHTML = '<option value="">Не назначен (в общую очередь)</option>';
+            for (let login in usersMap) {
+                if (usersMap[login].roleKey === 'engineer' || usersMap[login].roleKey === 'admin') {
+                    assigneeSelect.innerHTML += `<option value="${login}">${usersMap[login].fullName}</option>`;
+                }
+            }
+            
+            await loadScheduledTasks();
+        }
+        function closeTasksModal() { document.getElementById('tasksModal').classList.add('hidden'); }
+        
+        async function loadScheduledTasks() {
+            try {
+                const res = await fetch('/api/tasks?_t=' + Date.now(), { cache: "no-store" });
+                if (res.ok) {
+                    const tasks = await res.json();
+                    const list = document.getElementById('tasksAdminList');
+                    list.innerHTML = '';
+                    if (tasks.length === 0) {
+                        list.innerHTML = '<p class="text-[11px] opacity-60">Нет активных расписаний</p>';
+                        return;
+                    }
+                    
+                    tasks.forEach(t => {
+                        const assignName = t.assignee ? (usersMap[t.assignee]?.fullName || t.assignee) : 'Общая очередь';
+                        let freqLabel = 'Ежедневно';
+                        if(t.frequency === 'WEEKLY') freqLabel = 'Еженедельно';
+                        if(t.frequency === 'MONTHLY') freqLabel = 'Ежемесячно';
+                        
+                        list.innerHTML += `
+                            <div class="flex justify-between items-center gap-4 p-3 rounded border border-slate-200 dark:border-[#2b3643] bg-white dark:bg-[#242f3d]">
+                                <div>
+                                    <h5 class="font-bold text-xs text-slate-800 dark:text-[#f5f5f5]">${t.title}</h5>
+                                    <p class="text-[10px] text-slate-500 dark:text-[#7f91a4] mt-0.5"><i class="fa-solid fa-rotate mr-1"></i> ${freqLabel} • Исполнитель: ${assignName}</p>
+                                    <p class="text-[9px] font-mono text-slate-400 dark:text-[#7f91a4] mt-1">След. запуск: ${t.next_run}</p>
+                                </div>
+                                <button onclick="deleteScheduledTask(${t.id})" class="text-red-500 hover:text-red-700 text-xs shrink-0 cursor-pointer"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        `;
+                    });
+                }
+            } catch (e) {}
+        }
+        
+        async function createScheduledTask(e) {
+            e.preventDefault();
+            const fd = new FormData();
+            fd.append('title', document.getElementById('taskTitle').value.trim());
+            fd.append('description', document.getElementById('taskDesc').value.trim());
+            fd.append('frequency', document.getElementById('taskFreq').value);
+            fd.append('assignee', document.getElementById('taskAssignee').value);
+            fd.append('start_date', document.getElementById('taskStartDate').value); 
+            
+            const res = await fetch('/api/tasks', {method: 'POST', body: fd});
+            if(res.ok) {
+                document.getElementById('taskTitle').value = '';
+                document.getElementById('taskDesc').value = '';
+                showToast('Расписание добавлено', 'success');
+                await loadScheduledTasks();
+            }
+        }
+        
+        async function deleteScheduledTask(id) {
+            if(!confirm('Остановить это расписание?')) return;
+            const res = await fetch(`/api/tasks/${id}`, {method: 'DELETE'});
+            if(res.ok) {
+                showToast('Расписание удалено', 'info');
+                await loadScheduledTasks();
+            }
+        }
+
+        async function openStatsModal() {
+            document.getElementById('statsModal').classList.remove('hidden');
+            try {
+                const res = await fetch('/api/stats?_t=' + Date.now(), { cache: "no-store" });
+                const data = await res.json();
+                
+                document.getElementById('statTotal').innerText = data.total;
+                document.getElementById('statActive').innerText = data.active;
+                document.getElementById('statCsat').innerText = data.avg_csat;
+
+                if (chartStatus) chartStatus.destroy();
+                if (chartDate) chartDate.destroy();
+
+                const isDark = document.documentElement.classList.contains('dark');
+                const textColor = isDark ? '#7f91a4' : '#64748b';
+                const gridColor = isDark ? '#2b3643' : '#e2e8f0';
+
+                const ctxStatus = document.getElementById('statusChart').getContext('2d');
+                chartStatus = new Chart(ctxStatus, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(data.statuses),
+                        datasets: [{
+                            data: Object.values(data.statuses),
+                            backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#64748b'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: {color: textColor} } } }
+                });
+
+                const ctxDate = document.getElementById('dateChart').getContext('2d');
+                chartDate = new Chart(ctxDate, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(data.dates),
+                        datasets: [{
+                            label: 'Новые заявки',
+                            data: Object.values(data.dates),
+                            backgroundColor: '#3b82f6',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: { 
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { ticks: { color: textColor }, grid: { display: false } },
+                            y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor } }
+                        }
+                    }
+                });
+
+            } catch (e) {
+                console.error('Ошибка загрузки статистики', e);
+            }
+        }
+        function closeStatsModal() { document.getElementById('statsModal').classList.add('hidden'); }
+
+        function openCsatModal(ticketId) {
+            activeCsatTicketId = ticketId;
+            selectedStars = 0;
+            document.getElementById('csatTicketId').innerText = '#' + ticketId;
+            document.getElementById('csatFeedbackText').value = '';
+            highlightStars(0);
+            document.getElementById('csatModal').classList.remove('hidden');
+        }
+        
+        function closeCsatModal() {
+            document.getElementById('csatModal').classList.add('hidden');
+        }
+        
+        function highlightStars(count) {
+            const stars = document.querySelectorAll('#starContainer i');
+            stars.forEach((s, idx) => {
+                if (idx < count) {
+                    s.classList.remove('text-slate-300', 'dark:text-slate-600');
+                    s.classList.add('text-amber-400');
+                } else {
+                    s.classList.remove('text-amber-400');
+                    s.classList.add('text-slate-300', 'dark:text-slate-600');
+                }
+            });
+        }
+        
+        function setCsatRating(count) {
+            selectedStars = count;
+            highlightStars(count);
+            
+            const stars = document.querySelectorAll('#starContainer i');
+            stars.forEach((s, idx) => {
+                if (idx < count) {
+                    s.classList.remove('pop-star');
+                    void s.offsetWidth; 
+                    setTimeout(() => { s.classList.add('pop-star'); }, idx * 40);
+                }
+            });
+        }
+        
+        async function submitCsatRating() {
+            if (selectedStars === 0) { showToast('Пожалуйста, выберите оценку звёздами', 'error'); return; }
+            const fb = document.getElementById('csatFeedbackText').value;
+            const res = await fetch(`/api/tickets/${activeCsatTicketId}/rate?rating=${selectedStars}&feedback=${encodeURIComponent(fb)}`, { method: 'POST' });
+            if (res.ok) {
+                closeCsatModal();
+                showToast('Спасибо за вашу оценку!', 'success');
+                await loadTickets(); 
+            }
+        }
+
+        let profAvatarFile = null;
+
+        function openProfileModal() {
+            document.getElementById('profileModal').classList.remove('hidden');
+            document.getElementById('profLogin').value = currentUser.login;
+            document.getElementById('profFullName').value = currentUser.fullName || '';
+            document.getElementById('profDept').value = currentUser.dept || '';
+            
+            profAvatarFile = null;
+            document.getElementById('profAvatarInput').value = '';
+            document.getElementById('profAvatarPreview').innerHTML = getAvatarHtml(currentUser.login, currentUser.fullName, 'w-full h-full', 'text-2xl');
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profileModal').classList.add('hidden');
+        }
+
+        function previewProfileAvatar(e) {
+            if (e.target.files && e.target.files[0]) {
+                profAvatarFile = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    document.getElementById('profAvatarPreview').innerHTML = `<img src="${ev.target.result}" class="w-full h-full object-cover">`;
+                };
+                reader.readAsDataURL(profAvatarFile);
+            }
+        }
+
+        async function saveProfile(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Сохранение...';
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('fullName', document.getElementById('profFullName').value.trim());
+            formData.append('dept', document.getElementById('profDept').value.trim());
+            
+            if (profAvatarFile) {
+                formData.append('avatar', profAvatarFile);
+            }
+
+            try {
+                const res = await fetch(`/api/users/${currentUser.login}/profile`, { method: 'POST', body: formData });
+                if (res.ok) {
+                    const updatedUser = await res.json();
+                    currentUser.fullName = updatedUser.fullName;
+                    currentUser.dept = updatedUser.dept;
+                    
+                    await loadUsersMap();
+                    
+                    document.getElementById('userNameDisplay').innerText = currentUser.fullName;
+                    document.getElementById('headerAvatar').innerHTML = getAvatarHtml(currentUser.login, currentUser.fullName, 'w-6 h-6', 'text-[9px]');
+                    
+                    closeProfileModal();
+                    showToast('Профиль успешно обновлен', 'success');
+                    renderTickets();
+                } else {
+                    showToast('Ошибка сохранения', 'error');
+                }
+            } catch (err) {
+                showToast('Сетевая ошибка', 'error');
+            } finally {
+                btn.innerHTML = origText;
+                btn.disabled = false;
+            }
+        }
+
+        async function openRbacModal() {
+            document.getElementById('rbacModal').classList.remove('hidden');
+            const res = await fetch('/api/users');
+            const users = await res.json();
+            const tb = document.getElementById('usersTableBody');
+            tb.innerHTML = '';
+            
+            users.forEach(u => {
+                tb.innerHTML += `
+                    <tr class="hover:bg-slate-50 dark:hover:bg-[#242f3d]/50 transition">
+                        <td class="py-3 px-5 font-medium text-slate-800 dark:text-[#f5f5f5] flex items-center gap-3">
+                            ${getAvatarHtml(u.login, u.fullName, 'w-8 h-8')}
+                            <div>
+                                <strong>${u.login}</strong>
+                                <div class="text-[10px] text-slate-400 dark:text-[#7f91a4] font-normal uppercase tracking-wider">${u.fullName}</div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-5 text-slate-600 dark:text-[#e4ebf5] text-xs font-bold uppercase tracking-wider">${u.dept}</td>
+                        <td class="py-3 px-5">
+                            <select onchange="updateUserRole('${u.login}', this.value)" class="px-2 py-1 rounded border border-slate-300 dark:border-[#2b3643] text-xs font-bold uppercase tracking-wider bg-white dark:bg-[#242f3d] dark:text-[#e4ebf5] shadow-sm focus:outline-none cursor-pointer">
+                                <option value="user" ${u.roleKey === 'user' ? 'selected' : ''}>User</option>
+                                <option value="engineer" ${u.roleKey === 'engineer' ? 'selected' : ''}>Engineer</option>
+                                <option value="admin" ${u.roleKey === 'admin' ? 'selected' : ''}>Admin</option>
+                            </select>
+                        </td>
+                        <td class="py-3 px-5">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${u.isBlocked ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400' : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-400'}">
+                                ${u.isBlocked ? 'Заблокирован' : 'Активен'}
+                            </span>
+                        </td>
+                        <td class="py-3 px-5 text-right">
+                            <button onclick="toggleBlockUser('${u.login}', ${u.isBlocked})" class="px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider border ${u.isBlocked ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/50' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/50'} transition shadow-sm cursor-pointer">
+                                ${u.isBlocked ? 'Разблокировать' : 'Заблокировать'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        function closeRbacModal() { document.getElementById('rbacModal').classList.add('hidden'); }
+        async function updateUserRole(login, r) { await fetch(`/api/users/${login}/role?roleKey=${r}`, { method: 'POST' }); showToast('Роль обновлена', 'info'); }
+        async function toggleBlockUser(login, st) { await fetch(`/api/users/${login}/block?isBlocked=${!st}`, { method: 'POST' }); openRbacModal(); showToast('Статус изменен', 'info'); }
+
+
+        async function createTicket(e) {
+            e.preventDefault();
+            
+            const descContent = document.getElementById('ticketDesc').value.trim();
+            if (!descContent) {
+                showToast("Пожалуйста, заполните описание проблемы", "error");
+                return;
+            }
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Отправка...';
+            submitBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('category', document.getElementById('ticketCategory').value);
+            formData.append('title', document.getElementById('ticketTitle').value);
+            formData.append('description', descContent);
+            formData.append('priority', document.getElementById('ticketPriority').value);
+            formData.append('author', currentUser.login);
+            formData.append('equipment_id', document.getElementById('ticketEquipment').value);
+            
+            const fileInput = document.getElementById('ticketFileInput');
+            if (fileInput && fileInput.files.length > 0) {
+                formData.append('image', fileInput.files[0]);
+            } else if (pastedImageFile) {
+                formData.append('image', pastedImageFile);
+            }
+
+            try {
+                const res = await fetch('/api/tickets', { method: 'POST', body: formData });
+                if (res.ok) {
+                    closeCatalogForm();
+                    showToast('Заявка успешно создана', 'success');
+                    await loadTickets();
+                    
+                    if (window.innerWidth < 1024) {
+                        switchMobileTab('registry');
+                    }
+                } else {
+                    showToast('Ошибка: ' + await res.text(), 'error');
+                }
+            } catch (err) {
+                showToast('Ошибка сети', 'error');
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function loadTickets(showLoading = true) {
+            try {
+                const res = await fetch(`/api/tickets?_t=${Date.now()}`, { cache: "no-store" });
+                if (res.ok) {
+                    const newTickets = await res.json();
+                    
+                    // УМНОЕ КЭШИРОВАНИЕ ДЛЯ ПРЕДОТВРАЩЕНИЯ МОРГАНИЯ
+                    const newHash = JSON.stringify(newTickets);
+                    if (lastTicketsHash === newHash) return; 
+                    lastTicketsHash = newHash;
+                    
+                    allTickets = newTickets;
+                    updateKPI();
+                    updateOnSiteCounter(); 
+                    renderTickets();
+                }
+            } catch (err) {
+                console.error('Ошибка загрузки тикетов:', err);
+            }
+        }
+
+        function switchView(view) {
+            if (currentUser && currentUser.roleKey === 'user' && view === 'kanban') {
+                view = 'table';
+            }
+            currentView = view;
+            const btnTable = document.getElementById('btnTable');
+            const btnKanban = document.getElementById('btnKanban');
+            const tableView = document.getElementById('tableViewWrapper');
+            const kanbanView = document.getElementById('kanbanView');
+            const massPanel = document.getElementById('massActionPanel');
+
+            const activeBtnClass = isDarkMode ? "px-3 py-1.5 bg-[#242f3d] text-blue-400 shadow-sm rounded text-xs font-semibold transition cursor-pointer" : "px-3 py-1.5 bg-white text-blue-700 shadow-sm rounded text-xs font-semibold transition cursor-pointer";
+            const inactiveBtnClass = isDarkMode ? "px-3 py-1.5 text-[#7f91a4] hover:text-[#e4ebf5] rounded text-xs font-semibold transition cursor-pointer" : "px-3 py-1.5 text-slate-500 hover:text-slate-800 rounded text-xs font-semibold transition cursor-pointer";
+
+            if (view === 'table') {
+                btnTable.className = activeBtnClass;
+                btnKanban.className = inactiveBtnClass;
+                tableView.classList.remove('hidden');
+                kanbanView.classList.add('hidden');
+                kanbanView.classList.remove('grid');
+            } else {
+                btnKanban.className = activeBtnClass;
+                btnTable.className = inactiveBtnClass;
+                kanbanView.classList.remove('hidden');
+                kanbanView.classList.add('grid');
+                tableView.classList.add('hidden');
+                massPanel.classList.add('hidden');
+                massSelectedTickets.clear();
+            }
+            renderTickets();
+        }
+
+        // ================= МАССОВЫЕ ИНЦИДЕНТЫ =================
+        function handleTicketSelect(e, id) {
+            if (e.target.checked) {
+                massSelectedTickets.add(id);
+            } else {
+                massSelectedTickets.delete(id);
+            }
+            
+            const panel = document.getElementById('massActionPanel');
+            const counter = document.getElementById('massCount');
+            
+            if (massSelectedTickets.size > 0) {
+                counter.innerText = massSelectedTickets.size;
+                panel.classList.remove('hidden');
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+
+        function clearMassSelection() {
+            massSelectedTickets.clear();
+            document.getElementById('massActionPanel').classList.add('hidden');
+            document.querySelectorAll('.mass-checkbox').forEach(cb => cb.checked = false);
+        }
+
+        async function mergeSelectedTickets() {
+            if (massSelectedTickets.size < 1) return;
+            if (!confirm(`Объединить ${massSelectedTickets.size} заявки(ок) в один инцидент?`)) return;
+            
+            const btn = document.querySelector('#massActionPanel button');
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Соединяем...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/tickets/merge', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ticket_ids: Array.from(massSelectedTickets),
+                        admin_login: currentUser.login
+                    })
+                });
+                
+                if (res.ok) {
+                    showToast('Массовый инцидент успешно создан!', 'success');
+                    clearMassSelection();
+                    await loadTickets();
+                }
+            } catch (e) {
+                showToast('Ошибка при слиянии', 'error');
+            } finally {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            }
+        }
+        
+        async function escalateTicket(id) {
+            await fetch(`/api/tickets/${id}/escalate?admin=${encodeURIComponent(currentUser.login)}`, { method: 'POST' });
+            showToast('Заявка эскалирована на следующий уровень', 'info');
+            await loadTickets();
+        }
+        
+        async function approveTicket(id, isApproved) {
+            await fetch(`/api/tickets/${id}/approve?admin=${encodeURIComponent(currentUser.login)}&approved=${isApproved}`, { method: 'POST' });
+            showToast(isApproved ? 'Заявка одобрена!' : 'Заявка отклонена', isApproved ? 'success' : 'info');
+            await loadTickets();
+        }
+
+        function getFilteredTickets() {
+            const statusFilter = document.getElementById('filterStatus').value;
+            const categoryFilter = document.getElementById('filterCategory').value;
+            const dateFilter = document.getElementById('filterDate').value;
+            let assigneeFilter = 'ALL';
+            if (document.getElementById('filterAssignee')) {
+                assigneeFilter = document.getElementById('filterAssignee').value;
+            }
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+
+            let filtered = (currentUser.roleKey === 'user') 
+                ? allTickets.filter(t => t.author === currentUser.login)
+                : allTickets;
+
+            if (statusFilter !== 'ALL') filtered = filtered.filter(t => t.status === statusFilter);
+            if (categoryFilter !== 'ALL') filtered = filtered.filter(t => t.category === categoryFilter);
+            if (currentUser.roleKey !== 'user' && assigneeFilter !== 'ALL') {
+                if (assigneeFilter === 'UNASSIGNED') filtered = filtered.filter(t => !t.assignee || t.assignee === 'Не назначен');
+                else filtered = filtered.filter(t => t.assignee === assigneeFilter);
+            }
+            if (searchQuery) {
+                filtered = filtered.filter(t => 
+                    t.title.toLowerCase().includes(searchQuery) || 
+                    t.description.toLowerCase().includes(searchQuery) || 
+                    t.id.toString() === searchQuery ||
+                    t.author.toLowerCase().includes(searchQuery) ||
+                    (usersMap[t.author] && usersMap[t.author].fullName.toLowerCase().includes(searchQuery))
+                );
+            }
+            
+            if (dateFilter) {
+                const [y, m, d] = dateFilter.split('-');
+                const targetDate = `${d}.${m}.${y}`; 
+                filtered = filtered.filter(t => t.createdAt.startsWith(targetDate));
+            }
+            
+            return filtered;
+        }
+
+        function renderTickets() {
+            if (currentView === 'table') renderTableView();
+            else renderKanbanView();
+        }
+
+        function renderTableView() {
+            // СОХРАНЕНИЕ ФОКУСА, ТЕКСТА И СКРОЛЛА ДЛЯ ПРЕДОТВРАЩЕНИЯ МОРГАНИЯ
+            let activeInputId = document.activeElement ? document.activeElement.id : null;
+            let inputValues = {};
+            document.querySelectorAll('input[id^="commentInput_"]').forEach(el => {
+                if (el.value) inputValues[el.id] = el.value;
+            });
+            let expandedChildren = [];
+            document.querySelectorAll('div[id^="children_"]').forEach(el => {
+                if (!el.classList.contains('hidden')) expandedChildren.push(el.id);
+            });
+            
+            let chatScrolls = {};
+            document.querySelectorAll('div[id^="chatBox_"]').forEach(el => {
+                chatScrolls[el.id] = {
+                    top: el.scrollTop,
+                    height: el.scrollHeight,
+                    client: el.clientHeight
+                };
+            });
+
+            const filtered = getFilteredTickets();
+            const searchQuery = document.getElementById('searchInput').value;
+
+            // МАГИЯ СКРЫТИЯ ДОЧЕРНИХ ЗАЯВОК (СКРЫВАЕМ ЕСЛИ НЕТ ПОИСКА)
+            let displayTickets = filtered;
+            if (currentUser.roleKey !== 'user' && !searchQuery) {
+                displayTickets = filtered.filter(t => !t.parent_id);
+            }
+
+            let htmlString = `<div id="tableView" class="space-y-4">`;
+
+            if (displayTickets.length === 0) {
+                htmlString += `<div class="bg-white dark:bg-[#17212b] border border-slate-200 dark:border-[#2b3643] text-slate-400 dark:text-[#7f91a4] rounded-lg p-12 text-center shadow-sm text-sm font-medium">Нет записей, удовлетворяющих критериям поиска</div>`;
+            } else {
+                if (!window.unreadTicketsToMark) window.unreadTicketsToMark = new Set();
+
+                displayTickets.forEach(t => {
+                    let statusColor = isDarkMode ? 'bg-[#242f3d] text-blue-400 border-[#2b3643]' : 'bg-slate-100 text-blue-700 border-blue-200';
+                    let stIcon = 'fa-circle-dot';
+                    if (t.status === 'В работе') { statusColor = isDarkMode ? 'bg-amber-900/30 text-amber-400 border-amber-800' : 'bg-amber-50 text-amber-700 border-amber-200'; stIcon = 'fa-spinner fa-spin-pulse'; }
+                    if (t.status === 'Решена') { statusColor = isDarkMode ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-700 border-emerald-200'; stIcon = 'fa-check'; }
+                    if (t.status === 'Закрыта') { statusColor = isDarkMode ? 'bg-[#0e1621] text-[#7f91a4] border-[#2b3643]' : 'bg-slate-100 text-slate-500 border-slate-200'; stIcon = 'fa-lock'; }
+                    if (t.status === 'Ожидает согласования') { statusColor = isDarkMode ? 'bg-purple-900/30 text-purple-400 border-purple-800' : 'bg-purple-50 text-purple-700 border-purple-200'; stIcon = 'fa-clock'; }
+                    
+                    let levelBadgeColor = t.support_level === 'L3' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800' : 
+                                          t.support_level === 'L2' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-800' : 
+                                          'bg-slate-100 text-slate-600 dark:bg-[#242f3d] dark:text-[#e4ebf5] border-slate-200 dark:border-[#2b3643]';
+                    let levelBadge = `<span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded border ${levelBadgeColor}"><i class="fa-solid fa-layer-group mr-1"></i> ${t.support_level || 'L1'}</span>`;
+
+                    let childMarker = t.parent_id ? `<div class="bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-500 text-xs p-2 rounded mb-3 border border-amber-200 dark:border-amber-800 font-medium"><i class="fa-solid fa-link mr-1"></i> Эта заявка прикреплена к Мастер-инциденту #${t.parent_id}. Статус обновится автоматически.</div>` : '';
+
+                    let eqHtml = '';
+                    if (t.equipment) {
+                        eqHtml = `<div class="mt-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-2 rounded-md inline-flex flex-wrap gap-4 text-[10px] font-bold text-indigo-700 dark:text-indigo-400 shadow-sm"><span title="Устройство"><i class="fa-solid fa-server mr-1"></i> ${t.equipment.name}</span><span title="IP Адрес"><i class="fa-solid fa-network-wired mr-1"></i> ${t.equipment.ip_address || '-'}</span><span title="AnyDesk"><i class="fa-solid fa-desktop mr-1"></i> ${t.equipment.anydesk_id || '-'}</span></div>`;
+                    }
+
+                    let bottomBarHtml = '';
+                    if (currentUser.roleKey === 'admin' || currentUser.roleKey === 'engineer') {
+                        let escalateBtn = (t.support_level !== 'L3' && t.status !== 'Решена' && t.status !== 'Закрыта') 
+                            ? `<button onclick="escalateTicket(${t.id})" class="px-2.5 py-1 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 border border-rose-200 dark:border-rose-800 rounded text-[10px] font-bold uppercase tracking-wider transition shadow-sm cursor-pointer ml-2" title="Эскалировать на уровень выше"><i class="fa-solid fa-angles-up"></i> Эскалация</button>` : '';
+
+                        // Кнопка удаления для Админа
+                        let deleteBtn = (currentUser.roleKey === 'admin') 
+                            ? `<button onclick="deleteTicket(${t.id})" class="px-2.5 py-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800 rounded text-[10px] font-bold uppercase tracking-wider transition shadow-sm cursor-pointer ml-2" title="Удалить заявку навсегда"><i class="fa-solid fa-trash"></i></button>` : '';
+
+                        let approvalHtml = '';
+                        if (t.status === 'Ожидает согласования' && currentUser.roleKey === 'admin') {
+                            approvalHtml = `
+                                <div class="flex gap-2 mr-4">
+                                    <button onclick="approveTicket(${t.id}, true)" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold uppercase tracking-wider transition shadow-sm cursor-pointer"><i class="fa-solid fa-check mr-1"></i> Одобрить</button>
+                                    <button onclick="approveTicket(${t.id}, false)" class="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[10px] font-bold uppercase tracking-wider transition shadow-sm cursor-pointer"><i class="fa-solid fa-times mr-1"></i> Отклонить</button>
+                                </div>
+                            `;
+                        }
+
+                        let workBtn = (!t.assignee || t.assignee === 'Не назначен') && t.status !== 'Ожидает согласования' ? `<button onclick="assignTicket(${t.id})" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-bold uppercase tracking-wide transition shadow-sm cursor-pointer">Взять в работу</button>` : '';
+                        let statusSelectDisabled = t.status === 'Ожидает согласования' ? 'disabled' : '';
+
+                        bottomBarHtml = `
+                            <div class="flex items-center gap-3 mt-4 pt-4 border-t border-slate-200 dark:border-[#2b3643] flex-wrap">
+                                ${approvalHtml}
+                                <span class="text-[11px] font-bold text-slate-400 dark:text-[#7f91a4] uppercase tracking-wide">Статус:</span>
+                                <select onchange="updateTicketStatus(${t.id}, this.value)" class="px-2 py-1 rounded border bg-slate-50 dark:bg-[#242f3d] border-slate-300 dark:border-[#2b3643] text-slate-800 dark:text-[#e4ebf5] text-xs font-semibold transition cursor-pointer focus:outline-none" ${statusSelectDisabled}>
+                                    <option value="Новая" ${t.status === 'Новая' ? 'selected' : ''}>Новая</option>
+                                    <option value="Ожидает согласования" ${t.status === 'Ожидает согласования' ? 'selected' : ''}>На согласовании</option>
+                                    <option value="В работе" ${t.status === 'В работе' ? 'selected' : ''}>В работе</option>
+                                    <option value="Решена" ${t.status === 'Решена' ? 'selected' : ''}>Решена</option>
+                                    <option value="Закрыта" ${t.status === 'Закрыта' ? 'selected' : ''}>Закрыта</option>
+                                </select>
+                                <span class="text-[11px] text-slate-500 dark:text-[#7f91a4] ml-auto flex items-center gap-2">
+                                    <span class="uppercase font-bold tracking-wide hidden sm:inline">Исполнитель:</span> <strong class="text-slate-700 dark:text-[#f5f5f5]">${t.assignee ? (usersMap[t.assignee]?.fullName || t.assignee) : 'Не назначен'}</strong>
+                                    ${t.assignee && t.assignee !== 'Не назначен' ? getAvatarHtml(t.assignee, null, 'w-5 h-5') : ''}
+                                </span>
+                                ${workBtn}
+                                ${escalateBtn}
+                                ${deleteBtn}
+                            </div>
+                        `;
+                    } else {
+                        let csatButton = (t.status === 'Решена' || t.status === 'Закрыта') && !t.rating ? `<button onclick="openCsatModal(${t.id})" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-star"></i> Оценить работу</button>` : '';
+                        let ratingDisplay = t.rating ? `<span class="text-amber-400 text-xs font-bold flex items-center gap-1"><i class="fa-solid fa-star"></i> ${t.rating}/5</span>` : '';
+                        bottomBarHtml = `
+                            <div class="mt-4 p-3 rounded bg-slate-50 dark:bg-[#0e1621] border border-slate-200 dark:border-[#2b3643] flex flex-wrap items-center justify-between gap-4">
+                                <div class="flex items-center gap-4">
+                                    <div>
+                                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-[#7f91a4] block">ID Тикета</span>
+                                        <span class="text-sm font-bold text-slate-700 dark:text-[#e4ebf5]">#${t.id}</span>
+                                    </div>
+                                    <div class="h-6 w-px bg-slate-200 dark:bg-[#2b3643]"></div>
+                                    <div>
+                                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-[#7f91a4] block">Статус</span>
+                                        <span class="inline-flex items-center gap-1.5 mt-0.5 text-[10px] font-bold px-2 py-0.5 rounded border ${statusColor}"><i class="fa-solid ${stIcon}"></i> ${t.status}</span>
+                                    </div>
+                                    <div class="h-6 w-px bg-slate-200 dark:bg-[#2b3643]"></div>
+                                    <div>
+                                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-[#7f91a4] block">Оценка CSAT</span>
+                                        <div class="mt-0.5">${ratingDisplay || '<span class="text-xs text-slate-400 dark:text-[#7f91a4]">Нет оценки</span>'}</div>
+                                    </div>
+                                </div>
+                                <div>${csatButton}</div>
+                            </div>
+                        `;
+                    }
+
+                    let commentsHtml = `<div id="chatBox_${t.id}" class="space-y-3 mb-4 max-h-52 overflow-y-auto pr-2">`;
+                    if (t.comments && t.comments.length > 0) {
+                        t.comments.forEach(c => {
+                            if (c.isInternal && currentUser.roleKey === 'user') return;
+                            
+                            let isMe = c.author === currentUser.login;
+                            let isSystem = c.author === "Система";
+                            
+                            let readStatusHtml = '';
+                            if (!isSystem && isMe) {
+                                let iconClass = c.isRead ? 'fa-check-double text-blue-500 dark:text-blue-400' : 'fa-check text-slate-400 dark:text-[#7f91a4]';
+                                readStatusHtml = `<span class="ml-2" title="${c.isRead ? 'Прочитано' : 'Отправлено'}"><i class="fa-solid ${iconClass}"></i></span>`;
+                            }
+                            if (!isSystem && !isMe && !c.isRead) {
+                                window.unreadTicketsToMark.add(t.id);
+                            }
+
+                            if (isSystem) {
+                                commentsHtml += `
+                                <div class="fade-in flex justify-center my-2">
+                                    <span class="bg-slate-200/50 dark:bg-[#0e1621] text-slate-500 dark:text-[#7f91a4] text-[10px] px-3 py-1 rounded-full border border-slate-300/50 dark:border-[#2b3643] font-medium">
+                                        <i class="fa-solid fa-robot mr-1"></i> ${escapeHTML(c.text)} <span class="opacity-60 ml-2">${c.createdAt.split(' ')[1]}</span>
+                                    </span>
+                                </div>`;
+                                return;
+                            }
+
+                            let fileAttachmentHtml = '';
+                            if (c.filePath) {
+                                if (c.filePath.match(/\.(jpeg|jpg|gif|png)$/i)) {
+                                    fileAttachmentHtml = `<div class="mt-2"><a href="${c.filePath}" target="_blank"><img src="${c.filePath}" onload="const cb = document.getElementById('chatBox_${t.id}'); if(cb) { let isAtBottom = cb.scrollHeight - cb.scrollTop <= cb.clientHeight + 40; if(isAtBottom) cb.scrollTop = cb.scrollHeight; }" class="max-h-32 rounded border border-slate-200 dark:border-[#2b3643] shadow-sm object-cover"></a></div>`;
+                                } else {
+                                    fileAttachmentHtml = `<div class="mt-2"><a href="${c.filePath}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-slate-200 dark:border-[#2b3643] bg-white dark:bg-[#242f3d] text-blue-600 dark:text-blue-400 text-xs font-semibold hover:border-blue-300 transition"><i class="fa-solid fa-download"></i> Приложение</a></div>`;
+                                }
+                            }
+
+                            let bubbleColor = isMe 
+                                ? (isDarkMode ? 'bg-[#2b5278] border-[#2b5278] ml-10 text-[#e4ebf5]' : 'bg-white shadow-sm border-slate-200 ml-10') 
+                                : (isDarkMode ? 'bg-[#182533] border-[#2b3643] mr-10 text-[#e4ebf5]' : 'bg-slate-50 border-slate-200 mr-10');
+                                
+                            let internalBadge = '';
+                            if (c.isInternal) {
+                                bubbleColor = isDarkMode ? 'bg-amber-900/20 border-amber-700/50 text-[#e4ebf5] ml-10' : 'bg-amber-50 border-amber-200 ml-10';
+                                internalBadge = `<span class="ml-2 px-1 rounded border border-amber-400 text-[8px] text-amber-600 dark:text-amber-400 uppercase tracking-wider font-bold shadow-sm"><i class="fa-solid fa-lock"></i> Скрытая</span>`;
+                            }
+
+                            commentsHtml += `
+                                <div class="fade-in text-xs p-3 rounded-md border ${bubbleColor}">
+                                    <div class="flex justify-between items-center mb-1.5 border-b border-slate-100 dark:border-[#2b3643] pb-1.5">
+                                        <span class="flex items-center gap-2">${getAvatarHtml(c.author, null, 'w-4 h-4', 'text-[9px]')}<strong class="text-slate-700 dark:text-[#f5f5f5]">${usersMap[c.author]?.fullName || c.author}</strong> ${internalBadge}</span>
+                                        <span class="text-[9px] font-mono text-slate-400 dark:text-[#7f91a4] flex items-center">${c.createdAt} ${readStatusHtml}</span>
+                                    </div>
+                                    <p class="whitespace-pre-wrap leading-relaxed">${escapeHTML(c.text)}</p>
+                                    ${fileAttachmentHtml}
+                                </div>
+                            `;
+                        });
+                    } else {
+                        commentsHtml += '<p class="text-[11px] font-medium text-slate-400 dark:text-[#7f91a4] text-center py-4 border border-dashed border-slate-200 dark:border-[#2b3643] rounded">Журнал пуст</p>';
+                    }
+                    commentsHtml += '</div>';
+
+                    const cardBg = isDarkMode ? 'bg-[#17212b] border-[#2b3643] text-[#e4ebf5]' : 'bg-white border-slate-200 text-slate-800';
+                    
+                    let macrosHtml = '';
+                    let internalCheckHtml = '';
+                    let massCheckbox = '';
+                    let childrenHtml = '';
+                    
+                    if (currentUser.roleKey !== 'user') {
+                        if (!t.parent_id && t.status !== 'Закрыта') {
+                            let checked = massSelectedTickets.has(t.id.toString()) ? 'checked' : '';
+                            massCheckbox = `<input type="checkbox" class="mass-checkbox w-4 h-4 mr-3 cursor-pointer text-blue-600 rounded border-slate-300 dark:border-[#2b3643] bg-slate-50 dark:bg-[#242f3d]" onchange="handleTicketSelect(event, '${t.id}')" ${checked}>`;
+                        }
+                        
+                        let children = allTickets.filter(child => child.parent_id === t.id);
+                        if (children.length > 0) {
+                            let childList = children.map(c => `
+                                <div class="flex justify-between items-center bg-slate-50 dark:bg-[#242f3d] p-3 rounded-md border border-slate-200 dark:border-[#2b3643] mb-2 shadow-sm">
+                                    <div class="flex flex-col">
+                                        <span class="text-xs font-bold text-slate-800 dark:text-[#f5f5f5]">ID: ${c.id} — ${escapeHTML(c.title)}</span>
+                                        <span class="text-[10px] text-slate-500 dark:text-[#7f91a4] mt-1"><i class="fa-solid fa-user mr-1"></i> ${usersMap[c.author]?.fullName || c.author} | ${c.createdAt}</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <button onclick="document.getElementById('searchInput').value='${c.id}'; renderTickets();" class="text-[10px] bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded font-bold hover:bg-blue-100 transition shadow-sm border border-blue-200 dark:border-blue-800 cursor-pointer">Открыть</button>
+                                    </div>
+                                </div>
+                            `).join('');
+                            childrenHtml = `
+                                <div class="mt-4 mb-2 pt-4 border-t border-slate-200 dark:border-[#2b3643]">
+                                    <button type="button" onclick="const el = document.getElementById('children_${t.id}'); el.classList.toggle('hidden'); const ic = this.querySelector('i'); ic.classList.toggle('fa-chevron-down'); ic.classList.toggle('fa-chevron-up');" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-2 mb-3 transition hover:opacity-80 focus:outline-none cursor-pointer">
+                                        <i class="fa-solid fa-chevron-down w-3"></i> Развернуть связанные заявки (${children.length})
+                                    </button>
+                                    <div id="children_${t.id}" class="hidden pl-2 border-l-2 border-indigo-200 dark:border-indigo-900/50">
+                                        ${childList}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    
+                        macrosHtml = `
+                            <div class="flex gap-1.5 mb-2 overflow-x-auto pb-1">
+                                <button type="button" onclick="document.getElementById('commentInput_${t.id}').value='Пожалуйста, перезагрузите ПК и проверьте еще раз.';" class="px-2 py-1 text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-[#242f3d] border border-slate-200 dark:border-[#2b3643] rounded text-slate-500 dark:text-[#7f91a4] hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition whitespace-nowrap cursor-pointer">Перезагрузите ПК</button>
+                                <button type="button" onclick="document.getElementById('commentInput_${t.id}').value='Ожидаю удаленного подключения, напишите ID AnyDesk.';" class="px-2 py-1 text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-[#242f3d] border border-slate-200 dark:border-[#2b3643] rounded text-slate-500 dark:text-[#7f91a4] hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition whitespace-nowrap cursor-pointer">Нужен AnyDesk</button>
+                                <button type="button" onclick="document.getElementById('commentInput_${t.id}').value='Подождите, мы согласовываем данный вопрос с руководством.';" class="px-2 py-1 text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-[#242f3d] border border-slate-200 dark:border-[#2b3643] rounded text-slate-500 dark:text-[#7f91a4] hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/30 dark:hover:text-purple-400 transition whitespace-nowrap cursor-pointer">На согласовании</button>
+                            </div>
+                        `;
+                        internalCheckHtml = `
+                            <label class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500 cursor-pointer mr-3">
+                                <input type="checkbox" id="internalCheck_${t.id}" class="w-3.5 h-3.5 rounded border-amber-300 text-amber-500 focus:ring-amber-500 cursor-pointer"> 
+                                <span class="hidden sm:inline"><i class="fa-solid fa-lock"></i> Скрытая</span>
+                                <span class="sm:hidden"><i class="fa-solid fa-lock"></i></span>
+                            </label>
+                        `;
+                    }
+
+                    htmlString += `
+                        <div class="${cardBg} rounded-lg p-4 sm:p-6 shadow-sm border flex flex-col gap-3 transition hover:shadow-md relative overflow-hidden">
+                            ${childMarker}
+                            <div class="flex justify-between items-start gap-4">
+                                <div class="flex items-start">
+                                    ${massCheckbox}
+                                    <div>
+                                        <div class="flex items-center gap-2 flex-wrap mb-2.5">
+                                            <span class="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border ${statusColor}"><i class="fa-solid ${stIcon} mr-1"></i> ${t.status}</span>
+                                            <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded border bg-slate-100 dark:bg-[#242f3d] text-slate-600 dark:text-[#e4ebf5] border-slate-200 dark:border-[#2b3643]">${getCatIconHtml(t.category)} <span class="hidden sm:inline">${t.category || 'Оборудование'}</span></span>
+                                            ${getPriorityHtml(t.priority)}
+                                            ${levelBadge}
+                                        </div>
+                                        <h4 class="font-bold text-base tracking-tight text-slate-900 dark:text-[#f5f5f5]">ID: ${t.id} — ${escapeHTML(t.title)}</h4>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <span class="text-[10px] font-mono text-slate-400 dark:text-[#7f91a4] block mb-1">${t.createdAt}</span>
+                                    <div class="sla-countdown inline-block bg-slate-100 dark:bg-[#0e1621] border border-slate-200 dark:border-[#2b3643] px-2 py-1 rounded text-[10px]" data-created="${t.createdAt}" data-sla="${t.slaDeadline}" data-status="${t.status}"></div>
+                                </div>
+                            </div>
+                            <p class="text-sm leading-relaxed text-slate-600 dark:text-[#e4ebf5] bg-slate-50 dark:bg-[#0e1621] p-3 sm:p-4 rounded border border-slate-100 dark:border-[#2b3643] whitespace-pre-wrap">${escapeHTML(t.description)}</p>
+                            ${t.imagePath ? `<div class="mt-1"><a href="${t.imagePath}" target="_blank"><img src="${t.imagePath}" onload="const cb = document.getElementById('chatBox_${t.id}'); if(cb) { let isAtBottom = cb.scrollHeight - cb.scrollTop <= cb.clientHeight + 40; if(isAtBottom) cb.scrollTop = cb.scrollHeight; }" class="max-h-40 rounded border border-slate-200 dark:border-[#2b3643] shadow-sm object-cover"></a></div>` : ''}
+                            
+                            ${eqHtml}
+                            ${childrenHtml}
+                            ${bottomBarHtml}
+
+                            <div class="mt-4 pt-4 border-t border-slate-200 dark:border-[#2b3643]">
+                                <h5 class="text-[11px] uppercase tracking-wider font-bold text-slate-500 dark:text-[#7f91a4] mb-3 flex items-center"><i class="fa-regular fa-comments mr-2"></i> Журнал активности</h5>
+                                ${commentsHtml}
+                                
+                                <div id="commentFileName_${t.id}" class="hidden mb-2 inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-50 dark:bg-[#2b5278]/30 text-blue-700 dark:text-[#e4ebf5] text-[10px] font-bold border border-blue-200 dark:border-[#2b5278]">
+                                    <i class="fa-solid fa-paperclip"></i> <span class="filename-text truncate max-w-[200px]"></span>
+                                    <button type="button" onclick="clearCommentFile(${t.id})" class="ml-1 hover:text-red-500 transition cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+
+                                ${macrosHtml}
+                                <form onsubmit="sendComment(event, ${t.id})" class="flex gap-2 items-center">
+                                    <input type="text" id="commentInput_${t.id}" placeholder="Добавить запись..." class="flex-1 px-2 py-1.5 sm:px-3 sm:py-2 rounded border bg-white dark:bg-[#242f3d] border-slate-300 dark:border-[#2b3643] text-slate-800 dark:text-[#e4ebf5] text-xs focus:outline-none focus:border-blue-500 transition">
+                                    ${internalCheckHtml}
+                                    <label class="cursor-pointer px-2 py-1.5 sm:px-3 sm:py-2 rounded border bg-slate-50 dark:bg-[#242f3d] hover:bg-slate-100 dark:hover:bg-[#2b3643] text-slate-600 dark:text-[#7f91a4] border-slate-300 dark:border-[#2b3643] text-xs flex items-center justify-center transition cursor-pointer" title="Вложить файл">
+                                        <i class="fa-solid fa-paperclip"></i>
+                                        <input type="file" id="commentFile_${t.id}" class="hidden" onchange="updateFileName(${t.id})">
+                                    </label>
+                                    <button type="submit" class="px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold uppercase tracking-wider transition shadow-sm flex items-center justify-center gap-1.5 w-auto cursor-pointer">
+                                        <span class="hidden sm:inline">Отправить</span>
+                                        <i class="fa-solid fa-paper-plane sm:hidden"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            htmlString += `</div>`;
+
+            // ПРИМЕНЯЕМ MORPHDOM
+            const oldContainer = document.getElementById('tableView');
+            if (oldContainer && typeof morphdom !== 'undefined') {
+                morphdom(oldContainer, htmlString, {
+                    onBeforeElUpdated: function(fromEl, toEl) {
+                        // Не обновляем input, если он сейчас в фокусе (чтобы не сбросить текст)
+                        if (fromEl.tagName === 'INPUT' && fromEl === document.activeElement) {
+                            return false;
+                        }
+                        return true;
+                    }
+                });
+            } else {
+                document.getElementById('tableViewWrapper').innerHTML = htmlString;
+            }
+            
+            // ВОССТАНАВЛИВАЕМ ВСЕ ДАННЫЕ И ПОЗИЦИЮ СКРОЛЛА
+            for (let id in inputValues) {
+                let el = document.getElementById(id);
+                if (el) el.value = inputValues[id];
+            }
+            if (activeInputId) {
+                let el = document.getElementById(activeInputId);
+                if (el) {
+                    el.focus();
+                    let val = el.value;
+                    el.value = ''; el.value = val; 
+                }
+            }
+            expandedChildren.forEach(id => {
+                let el = document.getElementById(id);
+                if (el) {
+                    el.classList.remove('hidden');
+                    let btn = el.previousElementSibling;
+                    if(btn && btn.querySelector('i')) {
+                        btn.querySelector('i').classList.replace('fa-chevron-down', 'fa-chevron-up');
+                    }
+                }
+            });
+            document.querySelectorAll('div[id^="chatBox_"]').forEach(el => {
+                let oldScroll = chatScrolls[el.id];
+                if (oldScroll) {
+                    let isAtBottom = oldScroll.height - oldScroll.top <= oldScroll.client + 40;
+                    if (isAtBottom) el.scrollTop = el.scrollHeight; 
+                    else el.scrollTop = oldScroll.top; 
+                } else {
+                    el.scrollTop = el.scrollHeight; // Для новых чатов скроллим в самый низ
+                }
+            });
+            
+            updateSLATimers();
+        }
+
+        function updateFileName(id) {
+            const input = document.getElementById(`commentFile_${id}`);
+            const labelContainer = document.getElementById(`commentFileName_${id}`);
+            if (input.files.length > 0) {
+                labelContainer.querySelector('.filename-text').innerText = input.files[0].name;
+                labelContainer.classList.remove('hidden');
+            } else {
+                labelContainer.classList.add('hidden');
+            }
+        }
+
+        function clearCommentFile(id) {
+            const input = document.getElementById(`commentFile_${id}`);
+            input.value = '';
+            updateFileName(id);
+        }
+
+        function renderKanbanView() {
+            if (currentUser.roleKey === 'user') return;
+
+            const statuses = ['Ожидает согласования', 'Новая', 'В работе', 'Решена', 'Закрыта'];
+            statuses.forEach(s => {
+                document.getElementById(`col-${s}`).innerHTML = '';
+            });
+
+            const searchQuery = document.getElementById('searchInput').value;
+            let displayTickets = allTickets;
+            if (!searchQuery) {
+                displayTickets = allTickets.filter(t => !t.parent_id);
+            }
+
+            displayTickets.forEach(t => {
+                const status = t.status || 'Новая';
+                const col = document.getElementById(`col-${status}`);
+                if (!col) return;
+
+                let unreadCount = 0;
+                if (t.comments) {
+                    t.comments.forEach(c => {
+                        if (c.author !== currentUser.login && c.author !== "Система" && !c.isRead && !(c.isInternal && currentUser.roleKey === 'user')) {
+                            unreadCount++;
+                        }
+                    });
+                }
+                
+                let unreadBadge = unreadCount > 0 
+                    ? `<span class="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border-2 border-white dark:border-[#17212b] shadow-sm z-10 animate-pulse">${unreadCount}</span>` 
+                    : '';
+
+                const card = document.createElement('div');
+                card.className = `bg-white dark:bg-[#242f3d] border border-slate-200 dark:border-[#2b3643] text-slate-800 dark:text-[#e4ebf5] p-3 rounded shadow-sm cursor-grab active:cursor-grabbing hover:border-blue-400 transition flex flex-col gap-2 group fade-in relative`;
+                card.draggable = true;
+                card.ondragstart = (e) => e.dataTransfer.setData('text/plain', t.id);
+
+                let cleanDesc = t.description.replace(/<[^>]*>?/gm, ' ');
+                
+                let levelBadgeColor = t.support_level === 'L3' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800' : 
+                                      t.support_level === 'L2' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-800' : 
+                                      'bg-slate-100 text-slate-600 dark:bg-[#242f3d] dark:text-[#e4ebf5] border-slate-200 dark:border-[#2b3643]';
+                let levelBadge = `<span class="inline-flex items-center text-[8px] font-bold px-1.5 py-0.5 rounded border ${levelBadgeColor}">${t.support_level || 'L1'}</span>`;
+
+                card.innerHTML = `
+                    ${unreadBadge}
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[9px] font-mono text-slate-400 dark:text-[#7f91a4]">#${t.id}</span>
+                        <div class="flex gap-1">
+                            ${levelBadge}
+                            ${getPriorityHtml(t.priority)}
+                        </div>
+                    </div>
+                    <h5 class="font-bold text-xs group-hover:text-blue-600 dark:group-hover:text-blue-400 transition line-clamp-2 leading-tight">${escapeHTML(t.title)}</h5>
+                    <p class="text-[10px] text-slate-500 dark:text-[#7f91a4] line-clamp-2 leading-relaxed">${escapeHTML(cleanDesc)}</p>
+                    
+                    <div class="mt-2 text-right">
+                        <div class="sla-countdown inline-block bg-slate-50 dark:bg-[#0e1621] border border-slate-200 dark:border-[#2b3643] px-1.5 py-0.5 rounded text-[9px]" data-created="${t.createdAt}" data-sla="${t.slaDeadline}" data-status="${t.status}"></div>
+                    </div>
+
+                    <div class="flex justify-between items-end mt-2 pt-2 border-t border-slate-100 dark:border-[#2b3643] text-[10px] text-slate-400">
+                        <span class="bg-slate-100 dark:bg-[#0e1621] text-slate-600 dark:text-[#7f91a4] border border-slate-200 dark:border-[#2b3643] px-1.5 py-0.5 rounded font-bold truncate max-w-[90px]" title="${t.category}">
+                            ${getCatIconHtml(t.category)}
+                        </span>
+                        <div class="flex items-center gap-1.5" title="Исполнитель: ${t.assignee || 'Не назначен'}">
+                            ${getAvatarHtml(t.assignee || t.author, null, 'w-6 h-6')}
+                        </div>
+                    </div>
+                `;
+                col.appendChild(card);
+            });
+            updateSLATimers();
+        }
+
+        async function dropTicket(e, newStatus) {
+            e.preventDefault();
+            if (currentUser.roleKey === 'user') return;
+            const id = e.dataTransfer.getData('text/plain');
+            if (!id) return;
+            await updateTicketStatus(id, newStatus);
+        }
+
+        async function sendComment(e, ticketId) {
+            e.preventDefault();
+            const input = document.getElementById(`commentInput_${ticketId}`);
+            const fileInput = document.getElementById(`commentFile_${ticketId}`);
+            const internalCheck = document.getElementById(`internalCheck_${ticketId}`);
+            
+            const text = input.value.trim();
+            if (!text && fileInput.files.length === 0) return;
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalBtnHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+            submitBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('author', currentUser.login);
+            formData.append('text', text || (fileInput.files.length > 0 ? 'Прикреплен файл' : ''));
+            
+            if (internalCheck && internalCheck.checked) {
+                formData.append('isInternal', 'true');
+            } else {
+                formData.append('isInternal', 'false');
+            }
+            
+            if (fileInput.files.length > 0) {
+                formData.append('file', fileInput.files[0]);
+            }
+
+            try {
+                const res = await fetch(`/api/tickets/${ticketId}/comments`, { method: 'POST', body: formData });
+                if (res.ok) {
+                    input.value = '';
+                    fileInput.value = '';
+                    if(internalCheck) internalCheck.checked = false;
+                    document.getElementById(`commentFileName_${ticketId}`).classList.add('hidden');
+                    // Сброс хэша для принудительного обновления
+                    lastTicketsHash = "";
+                    await loadTickets(); 
+                }
+            } finally {
+                submitBtn.innerHTML = originalBtnHtml;
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function updateTicketStatus(id, status) {
+            if (currentUser.roleKey === 'user') return;
+            await fetch(`/api/tickets/${id}/status?status=${encodeURIComponent(status)}&admin=${encodeURIComponent(currentUser.login)}`, { method: 'POST' });
+            lastTicketsHash = "";
+            await loadTickets(); 
+        }
+
+        async function assignTicket(id) {
+            if (currentUser.roleKey === 'user') return;
+            await fetch(`/api/tickets/${id}/assign?assignee=${encodeURIComponent(currentUser.login)}`, { method: 'POST' });
+            showToast('Заявка взята в работу', 'success');
+            lastTicketsHash = "";
+            await loadTickets(); 
+        }
+
+        async function deleteTicket(id) {
+            if (!confirm('Удалить эту запись? Действие необратимо.')) return;
+            await fetch(`/api/tickets/${id}`, { method: 'DELETE' });
+            showToast('Заявка удалена', 'info');
+            lastTicketsHash = "";
+            await loadTickets(); 
+        }
+    </script>
+</body>
+</html>
